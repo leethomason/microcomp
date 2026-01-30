@@ -1,0 +1,34 @@
+Test log file.
+General stuff to throw at the compressor / decompressor.
+
++------------------+
++ Great for RLE!   +
++------------------+
+
+X: 0012.34
+Y: 0345.67
+Z: 0000.01
+
+High bits:
+
+Hello, World!
+Καλημέρα κόσμε (Greek)
+こんにちは世界 (Japanese)
+안녕하세요 세계 (Korean)
+
+// Random readme:
+
+Tested on Windows, Linux, and OSX.
+
+Ionic is a simple library for outputting tables to the console. It can print
+in color, line break, align text, and supports several output styles.
+Ionic is simple; it doesn't have a lot of features, but it's easy to use, and
+runs reasonably efficiently.
+
+Ionic is similar to Tabulate (<https://github.com/p-ranav/tabulate>) but it is
+much simpler, both in code and features. Ionic has built-in support for
+terminal width, which is a convenience Tabulate does not have.
+
+It has no dependencies beyond C++ 17. Ionic does have platform code - it calls
+windows / linux / osx functions to initialize the console and query size.
+

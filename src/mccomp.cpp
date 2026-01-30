@@ -26,8 +26,8 @@ int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t*
     }
     int runLength = int(p - input);
     if (runLength >= kRLEMinLength) {
-        // Emit RLE
-        if (out + 2 >= outputEnd) {
+        // Check if we have space for RLE marker + value (2 bytes)
+        if (out + 2 > outputEnd) {
             return 0;
         }
         *out++ = uint8_t(kRLEStart + (runLength - kRLEMinLength));
@@ -45,24 +45,26 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
 	const uint8_t* outEnd = output + outputSize;
 
 	while (in < inEnd && out < outEnd) {
-		int bytes = writeRLE(in, inEnd, out, outEnd);
-
-        if (bytes > 0) {
-            if (out + 2 >= outEnd)
-                break;
-            in += bytes;
+        // Try RLE encoding first
+		int rleBytes = writeRLE(in, inEnd, out, outEnd);
+        if (rleBytes > 0) {
+            // RLE succeeded and already wrote 2 bytes
+            in += rleBytes;
             out += 2;
             continue;
 		}
-        // Literal.
+
+        // Emit as literal
         if (*in >= 128) {
-            if (out + 2 >= outEnd) {
-                break; // Not enough space
+            // High-bit values need escape sequence: kLiteral marker + value
+            if (out + 2 > outEnd) {
+                break;
             }
             *out++ = kLiteral;
             *out++ = *in++;
         }
         else {
+            // Low values can be written directly
             *out++ = *in++;
         }
     }
@@ -77,29 +79,33 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     const uint8_t* outEnd = output + outputSize;
 
     while (in < inEnd && out < outEnd) {
-        uint8_t byte = *in++;
+        uint8_t byte = *in;
+        
         if (byte >= kRLEStart && byte <= kRLEEnd) {
-			if (in + 1 >= inEnd) {
-                in--;
+            // RLE sequence: marker + value (2 bytes total)
+			if (in + 2 > inEnd) {
                 break; // Not enough input
             }
             int runLength = int(byte - kRLEStart + kRLEMinLength);
-            uint8_t value = *in++;
             if (out + runLength > outEnd) {
-                in -= 2;
                 break; // Not enough output space
             }
+            in++; // Consume marker
+            uint8_t value = *in++; // Consume value
             std::fill(out, out + runLength, value);
             out += runLength;
         }
 		else if (byte == kLiteral) {
-			if (in + 1 >= inEnd) {
-                in--;
+            // Escaped literal: kLiteral marker + actual value (2 bytes total)
+			if (in + 2 > inEnd) {
                 break; // Not enough input
             }
-			*out++ = *in++;
+            in++; // Consume marker
+			*out++ = *in++; // Consume and write value
         }
         else {
+            // Direct literal value
+            in++;
             *out++ = byte;
 		}
     }

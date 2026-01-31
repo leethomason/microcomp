@@ -11,12 +11,52 @@
 
 namespace mccomp {
 
-static constexpr uint8_t kLiteral = 128;
-static constexpr uint8_t kRLEStart = 129;
-static constexpr uint8_t kRLEEnd = 136;
+void Table::push(uint8_t a)
+{
+    assert(a != 0);
+    assert(a < 128);
 
-static constexpr int kRLEMinLength = 3;
-static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;
+    if (_prev == 0) {
+        _prev = a;
+        return;
+    }
+
+    int idx = hash(_prev, a);
+    if (_table[idx].count == 0) {
+        _table[idx].count = 1;
+        _table[idx].a = _prev;
+        _table[idx].b = a;
+    }
+    else if (_table[idx].match(_prev, a)) {
+        _table[idx].count++;
+    }
+    _prev = a;
+}
+
+int Table::fetch(uint8_t a, uint8_t b) const
+{
+    int idx = hash(a, b);
+    if (_table[idx].count > 0 && _table[idx].match(a, b)) {
+        assert(_table[idx].a != 0 && _table[idx].b != 0);
+        assert(_table[idx].a < 128 && _table[idx].b < 128);
+        return idx;
+    }
+    return -1;
+}
+
+void Table::get(int idx, uint8_t& a, uint8_t& b) const
+{
+    a = _table[idx].a;
+    b = _table[idx].b;
+    assert(a != 0 && b != 0);
+    assert(a < 128 && b < 128);
+}
+
+int Table::count(int idx) const
+{
+    return _table[idx].count;
+}
+
 
 int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t* out, const uint8_t* outputEnd)
 {
@@ -37,6 +77,18 @@ int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t*
     return 0;
 }
 
+// Take ABCD
+// BC = 1 already in table
+// compress:
+//   *in = A. next = B. AB not in table, push(A)
+//   *in = B. next = C. BC in table at idx 1, push(B), push(C), skip
+//   *in = D  next = ? done
+// decompress:
+//   *in = A. push(A)
+//   *in = idx 1. get(1) = BC, push(B), push(C), skip
+//   *in = D. next= ? done
+
+
 Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
 {
     const uint8_t* in = input;
@@ -53,9 +105,23 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             out += 2;
             continue;
 		}
+		// If both ascii, add to table
+        uint8_t byte = *in;
+		uint8_t nextByte = (in + 1 < inEnd) ? *(in + 1) : 0;
 
+		// To match decompressor, we need to query the table before pushing
+        if (byte > 0 && byte < 128 && nextByte > 0 && nextByte < 128) {
+            int idx = _table.fetch(byte, nextByte);
+            if (idx >= 0) {
+                *out++ = uint8_t(idx + kTableStart);
+                in += 2;
+				_table.push(byte);
+				_table.push(nextByte);
+                continue;
+            }
+        }
         // Emit as literal
-        if (*in >= 128) {
+        if (byte >= 128) {
             // High-bit values need escape sequence: kLiteral marker + value
             if (out + 2 > outEnd) {
                 break;
@@ -65,6 +131,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
         }
         else {
             // Low values can be written directly
+			_table.push(byte);
             *out++ = *in++;
         }
     }
@@ -95,16 +162,26 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
             std::fill(out, out + runLength, value);
             out += runLength;
         }
-		else if (byte == kLiteral) {
-            // Escaped literal: kLiteral marker + actual value (2 bytes total)
-			if (in + 2 > inEnd) {
-                break; // Not enough input
+        else if (byte >= kTableStart && byte <= kTableEnd) {
+			if (out + 2 > outEnd) {
+                break; // Not enough output space
             }
+
+            uint8_t a, b;
+            _table.get(byte - kTableStart, a, b);
+            _table.push(a);
+            _table.push(b);
+            in++;
+			*out++ = a;
+			*out++ = b;
+        }
+		else if (byte == kLiteral) {
             in++; // Consume marker
 			*out++ = *in++; // Consume and write value
         }
         else {
             // Direct literal value
+            _table.push(byte);
             in++;
             *out++ = byte;
 		}

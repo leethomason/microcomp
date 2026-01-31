@@ -24,9 +24,11 @@ Table::~Table()
 
 void Table::push(uint8_t a)
 {
-    assert(a != 0);
-    assert(a < 128);
+    assert(isAscii(a));
 
+    // Age down the count with every push, rolling
+    // through the table. Anythnig with count == 0
+    // will get re-used.
 	_count++;
     if (_table[_count % kTableSize].count > 0) {
         _table[_count % kTableSize].count--;
@@ -34,7 +36,6 @@ void Table::push(uint8_t a)
 
     if (_prev == 0) {
         _prev = a;
-        return;
     }
 
     int idx = hash(_prev, a);
@@ -53,8 +54,8 @@ int Table::fetch(uint8_t a, uint8_t b) const
 {
     int idx = hash(a, b);
     if (_table[idx].count > 0 && _table[idx].match(a, b)) {
-        assert(_table[idx].a != 0 && _table[idx].b != 0);
-        assert(_table[idx].a < 128 && _table[idx].b < 128);
+        assert(isAscii(_table[idx].a));
+        assert(isAscii(_table[idx].b));
         return idx;
     }
     return -1;
@@ -64,8 +65,8 @@ void Table::get(int idx, uint8_t& a, uint8_t& b) const
 {
     a = _table[idx].a;
     b = _table[idx].b;
-    assert(a != 0 && b != 0);
-    assert(a < 128 && b < 128);
+    assert(isAscii(_table[idx].a));
+    assert(isAscii(_table[idx].b));
 }
 
 int Table::count(int idx) const
@@ -133,11 +134,11 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             out += 2;
             continue;
 		}
-		// If both ascii, add to table
         uint8_t byte = *in;
 		uint8_t nextByte = (in + 1 < inEnd) ? *(in + 1) : 0;
 
-		// To match decompressor, we need to query the table before pushing
+        // If both ascii, add to table
+        // To match decompressor, we need to query the table before pushing
 		if (isAscii(byte) && isAscii(nextByte)) {
             int idx = _table.fetch(byte, nextByte);
             if (idx >= 0) {

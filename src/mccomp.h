@@ -5,6 +5,7 @@
 
 namespace mccomp {
 
+// Use the low end of the byte range for RLE markers
 static constexpr uint8_t kRLEStart = 0;
 static constexpr uint8_t kRLEEnd = 8; // backspace
 

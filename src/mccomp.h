@@ -5,15 +5,21 @@
 
 namespace mccomp {
 
-static constexpr uint8_t kLiteral = 128;
-static constexpr uint8_t kRLEStart = 129;
-static constexpr uint8_t kRLEEnd = 136;
-static constexpr uint8_t kTableStart = kRLEEnd + 1;
+static constexpr uint8_t kRLEStart = 0;
+static constexpr uint8_t kRLEEnd = 8; // backspace
+
+static constexpr uint8_t kLiteral = 127;
+static constexpr uint8_t kTableStart = 128;
 static constexpr uint8_t kTableEnd = 255;
 
 static constexpr int kRLEMinLength = 3;
 static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;
 static constexpr int kTableSize = kTableEnd - kTableStart + 1;
+
+// "normal" ascii byte
+inline bool isAscii(uint8_t byte) {
+    return byte > kRLEEnd && byte < kLiteral;
+}
 
 class Table {
 public:
@@ -29,7 +35,10 @@ public:
 
 private:
     int hash(uint8_t a, uint8_t b) const {
-        return (a * 37 + b * 101) % kTableSize;
+		// It's surprisingly sensitive to the choice of multipliers here.
+        // These were found by rough testing, but worth revisiting on a
+		// representative corpus.
+        return (a * 37 + b * 227) % kTableSize;       // 71.9
     }
 
     struct Entry {
@@ -41,14 +50,10 @@ private:
             return a == a_ && b == b_;
 		}
     };
-    uint8_t _prev;
+    uint8_t _prev = 0;
     int _count = 0;
     std::array<Entry, kTableSize> _table;
 };
-
-inline bool isAscii(uint8_t byte) {
-    return byte < kLiteral;
-}
 
 struct Result {
     int nInput = 0;

@@ -8,7 +8,8 @@ namespace mccomp {
 
 Table::~Table()
 {
-#if 0
+#if false
+    printf("--- Table ---\n");
     for (int i = 0; i < kTableSize; i++) {
 		const Entry& e = _table[i];
         printf("%c%c:%3d ", e.a >= 32 && e.a < 127 ? e.a : ' ', e.b >= 32 && e.b < 127 ? e.b : ' ', e.count);
@@ -204,6 +205,10 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
 			*out++ = b;
         }
 		else if (byte == kLiteral) {
+            // Literal escape sequence: marker + value (2 bytes total)
+            if (in + 2 > inEnd) {
+                break; // Not enough input
+            }
             in++; // Consume marker
 			*out++ = *in++; // Consume and write value
         }

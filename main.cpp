@@ -180,6 +180,7 @@ int main(int argc, char* argv[]) {
     
     int rc = cycle(fileContent, true);
 
+    // Check different buffer sizes.
     for (int i = 16; i < 40; i += 3) {
         for (int j = 16; j < 40; j += 4) {
             rc = cycle(fileContent, false, i, j);

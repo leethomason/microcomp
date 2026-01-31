@@ -22,6 +22,9 @@ inline bool isAscii(uint8_t byte) {
     return byte > kRLEEnd && byte < kLiteral;
 }
 
+// The Table is created on the fly by the compressor and decompressor.
+// They use the data stream itself to populate the table in the same way.
+
 class Table {
 public:
 	Table() = default;
@@ -78,6 +81,7 @@ public:
 	// Decompress data. This can (and should) be called multiple times to process.
     Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
+    // debugging: clarify the table usage
     void utilization(int& nEntries, int& nTotal) const {
         _table.utilization(nEntries, nTotal);
     }

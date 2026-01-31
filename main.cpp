@@ -114,6 +114,9 @@ int main(int argc, char* argv[]) {
         }
     }    
     std::string uncompressed;
+    int nEntries = 0;
+    int nTotal = 0;
+
     {
         static constexpr int bufferSize = 19;
         uint8_t working[bufferSize + 1];
@@ -136,14 +139,14 @@ int main(int argc, char* argv[]) {
             pos += r.nInput;
 
             if (pos == compressed.size()) {
-                // Final bytes:
-                assert(r.nInput > 0);
+                decompressor.utilization(nEntries, nTotal);
             }
         }
 
         std::cout << "Input: " << fileContent.size() << std::endl;
         std::cout << "Uncompressed: " << uncompressed.size() << " Compressed: " << compressed.size() << " bytes" << std::endl;
         std::cout << "Ratio%: " << 100.0 * compressed.size() / uncompressed.size() << std::endl;
+        std::cout << "Utilization: nEntries = " << nEntries << " / " << mccomp::kTableSize << " nTotal = " << nTotal << "\n";
 
         // Verify that decompressed data matches original data
         if (uncompressed != fileContent) {

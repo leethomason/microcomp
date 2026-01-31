@@ -17,19 +17,22 @@ static constexpr int kTableSize = kTableEnd - kTableStart + 1;
 
 class Table {
 public:
+	Table() = default;
+    ~Table();
+
     void push(uint8_t val);
     int fetch(uint8_t a, uint8_t b) const;
     void get(int idx, uint8_t& a, uint8_t& b) const;
 
     int count(int idx) const;
+    void utilization(int& nUsed, int& nTotal) const;
 
 private:
     static constexpr int kGCLow = 1000;
 
     int hash(uint8_t a, uint8_t b) const {
-        return (a * kTableSize + b) % kTableSize;
+        return (a * 37 + b * 101) % kTableSize;
     }
-	void gc(int threshold);
 
     struct Entry {
         uint8_t a = 0;
@@ -44,6 +47,10 @@ private:
     int _count = 0;
     std::array<Entry, kTableSize> _table;
 };
+
+inline bool isAscii(uint8_t byte) {
+    return byte < kLiteral;
+}
 
 struct Result {
     int nInput = 0;
@@ -63,6 +70,10 @@ private:
 class Decompressor {
 public:
     Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
+
+    void utilization(int& nEntries, int& nTotal) const {
+        _table.utilization(nEntries, nTotal);
+    }
 
 private:
     Table _table;

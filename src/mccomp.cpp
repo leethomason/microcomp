@@ -6,13 +6,27 @@
 
 namespace mccomp {
 
+Table::~Table()
+{
+    for (int i = 0; i < kTableSize; i++) {
+		const Entry& e = _table[i];
+        printf("%c%c:%3d ", e.a >= 32 && e.a < 127 ? e.a : ' ', e.b >= 32 && e.b < 127 ? e.b : ' ', e.count);
+		if (i % 10 == 9) {
+            printf("\n");
+        }
+    }
+	printf("\n");
+}
+
+
 void Table::push(uint8_t a)
 {
     assert(a != 0);
     assert(a < 128);
+
 	_count++;
-	if (_count % kGCLow == 0) {
-        gc(3);
+    if (_table[_count % kTableSize].count > 0) {
+        _table[_count % kTableSize].count--;
     }
 
     if (_prev == 0) {
@@ -56,16 +70,18 @@ int Table::count(int idx) const
     return _table[idx].count;
 }
 
-void Table::gc(int threshold)
+void Table::utilization(int& nUsed, int& nTotal) const
 {
-    for (auto& entry : _table) {
-        if (entry.count < threshold) {
-            entry.a = 0;
-            entry.b = 0;
-            entry.count = 0;
+    nUsed = 0;
+    nTotal = 0;
+    for (int i = 0; i < kTableSize; i++) {
+        if (_table[i].count > 0) {
+            nUsed++;
         }
-    }
+        nTotal += _table[i].count;
+	}
 }
+
 
 int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t* out, const uint8_t* outputEnd)
 {
@@ -119,7 +135,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
 		uint8_t nextByte = (in + 1 < inEnd) ? *(in + 1) : 0;
 
 		// To match decompressor, we need to query the table before pushing
-        if (byte > 0 && byte < 128 && nextByte > 0 && nextByte < 128) {
+		if (isAscii(byte) && isAscii(nextByte)) {
             int idx = _table.fetch(byte, nextByte);
             if (idx >= 0) {
                 *out++ = uint8_t(idx + kTableStart);
@@ -130,7 +146,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             }
         }
         // Emit as literal
-        if (byte >= 128) {
+        if (!isAscii(byte)) {
             // High-bit values need escape sequence: kLiteral marker + value
             if (out + 2 > outEnd) {
                 break;
@@ -141,7 +157,8 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
         else {
             // Low values can be written directly
 			_table.push(byte);
-            *out++ = *in++;
+            *out++ = byte;
+            in++;
         }
     }
     return { int(in - input), int(out - output) };

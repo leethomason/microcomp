@@ -177,7 +177,13 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             *out++ = *in++;
         }
     }
-    return {static_cast<int>(in - input), static_cast<int>(out - output)};
+    Result result;
+    result.nInput = static_cast<int>(in - input);
+    result.nOutput = static_cast<int>(out - output);
+    result.readDone = in == inEnd;
+    result.writeDone = true; // the compressor won't write to out unless there is space, so it's always done
+    result.done = result.readDone && result.writeDone;
+    return result;
 }
 
 Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
@@ -187,22 +193,48 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
 
-    while (in < inEnd && out < outEnd) {
-        const uint8_t byte = *in;
+    while (out < outEnd) {
+        // Flush RLE
+        if (_nRLE) {
+            if (_rleValue < 0) {
+                _rleValue = *in++;
+                continue;
+            }
+            int n = std::min(_nRLE, int(outEnd - out));
+            _nRLE -= n;
+            while (n--)
+                *out++ = uint8_t(_rleValue);
+            if (_nRLE == 0)
+                _rleValue = -1;
+            continue;
+        }
+        // Flush literal
+        if (_nLiteral) {
+            if (_literalValue < 0) {
+                assert(_literalValue < 0);
+                _literalValue = *in++;
+                continue;
+            }
+            int n = std::min(_nLiteral, int(outEnd - out));
+            _nLiteral -= n;
+            while (n--)
+                *out++ = uint8_t(_literalValue);
+            if (_nLiteral == 0)
+                _literalValue = -1;
+            continue;
+        }
+
+        // Now that the RLE and literal is flushed, we need input!
+        if (in >= inEnd) {
+            break;
+        }
         
+        const uint8_t byte = *in;
         if (byte >= kRLEStart && byte <= kRLEEnd) {
-            // RLE sequence: marker + value (2 bytes total)
-            if (in + 2 > inEnd) {
-                break; // Not enough input
-            }
-            const int runLength = static_cast<int>(byte - kRLEStart + kRLEMinLength);
-            if (out + runLength > outEnd) {
-                break; // Not enough output space
-            }
-            in++; // Consume marker
-            const uint8_t value = *in++; // Consume value
-            std::fill(out, out + runLength, value);
-            out += runLength;
+            _nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
+            ++in; // consume marker
+            _rleValue = -1;
+            continue;
         }
         else if (byte >= kTableStart && byte <= kTableEnd) {
             if (out + 2 > outEnd) {
@@ -218,25 +250,23 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
         }
         else if (byte == kLiteral) {
             // Literal escape sequence: marker + value (2 bytes total)
-            if (in + 2 > inEnd) {
-                break; // Not enough input
-            }
-            if (out + 1 > outEnd) {
-                break; // Not enough output space
-            }
-            in++; // Consume marker
-            *out++ = *in++; // Consume and write value
+            _nLiteral = 1;
+            ++in;   // consume marker
+            _literalValue = -1;
+            continue;
         }
         else {
-            // Direct literal value
-            if (out + 1 > outEnd) {
-                break; // Not enough output space
-            }
             _table.push(byte);
             *out++ = *in++;
         }
     }
-    return {static_cast<int>(in - input), static_cast<int>(out - output)};
+    Result result;
+    result.nInput = static_cast<int>(in - input);
+    result.nOutput = static_cast<int>(out - output);
+    result.readDone = in == inEnd;
+    result.writeDone = (_literalValue < 0) && (_rleValue < 0);
+    result.done = result.readDone && result.writeDone;
+    return result;
 }
 
 } // namespace mccomp

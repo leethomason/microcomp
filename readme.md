@@ -1,11 +1,8 @@
 # MCComp Compression Library
 
-A very simple byte-pair compression library in C++. It is intended
-for running on a micro-controller and for reading and writing
-compressed log files.
+A simple byte-pair compression library in C++, designed for microcontrollers and compressed log file processing.
 
-It will work on any data - including UTF-8 and binary - but it
-is tuned for low-ascii text data.
+MCComp works on any data (UTF-8, binary, etc.) but is optimized for low-ASCII text data. It provides efficient compression without external dependencies or memory allocation.
 
 ## Features
 
@@ -17,7 +14,7 @@ is tuned for low-ascii text data.
 ## Performance
 
 It reduces file size to about 70-75% of original size on typical
-text files. (Shockingly good for such a simple algorithm and 
+text files. (Shockingly good for such a simple algorithm and
 teeny codebase.)
 
 It was inspired by https://github.com/antirez/smaz and 
@@ -28,13 +25,19 @@ MCComp uses similar ideas but builds its dictionary on the fly.
 
 ## Algorithm
 
-Simple byte based approach - no bit fiddling.
+MCComp uses a byte-based approach without bit manipulation:
 
-* RLE is used for runs of 3 or more identical bytes. A RLE tag -
-  which includes the size of the run - is written followed by
-  the byte value.
-* A table of common byte pairs is built on the fly. Any high ascii
-  value is interpreted as an index into the table.
-* High ascii values which are written as a high ascii marker followed
-  by the value itself.
-* Low ascii values are written as-is.
+* RLE is used for runs of 3 or more identical bytes. A byte in
+  the range of [kRLEStart, kRLEEnd] indicates a run and the
+  run length. The next byte is the repeated value.
+* A table of common byte pairs is built on the fly. The table
+  is a fast index into common byte pairs seen. Byte pairs not
+  used are incrementally evicted. A byte in the range of
+  [kTableStart, kTableEnd] indicates a byte pair from the table,
+  at index (value - kTableStart).
+* Values used as RLE or Table tags are escaped by writing
+  kLiteral then the value. A degenerate input will have all values
+  that need to be escaped, and the compressed size will be double
+  the original size.
+* Remaining values are written as is.
+

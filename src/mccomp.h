@@ -46,15 +46,15 @@ private:
     }
 
     struct Entry {
-        uint8_t a = 0;
-        uint8_t b = 0;
+        uint8_t a = ' ';
+        uint8_t b = ' ';
         uint16_t count = 0;
 
         bool match(uint8_t a_, uint8_t b_) const {
             return a == a_ && b == b_;
 		}
     };
-    uint8_t _prev = 0;
+    uint8_t _prev = ' ';
     int _count = 0;
     std::array<Entry, kTableSize> _table;
 };
@@ -68,6 +68,7 @@ class Compressor {
 public:
 	// Compress data. This can (and should) be called multiple times to process, where
 	// inputSize and outputSize specify the size of the input and output buffers.
+    // Buffer sizes can be modest; on a microcontroller, 40-80 bytes is sufficient.
     Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
 private:
@@ -79,6 +80,7 @@ private:
 class Decompressor {
 public:
 	// Decompress data. This can (and should) be called multiple times to process.
+    // Buffer sizes can be modest; on a microcontroller, 40-80 bytes is sufficient.
     Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
     // debugging: clarify the table usage

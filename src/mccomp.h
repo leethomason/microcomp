@@ -66,9 +66,14 @@ struct Result {
 
 class Compressor {
 public:
-	// Compress data. This can (and should) be called multiple times to process, where
-	// inputSize and outputSize specify the size of the input and output buffers.
-    // Buffer sizes can be modest; on a microcontroller, 40-80 bytes is sufficient.
+	// Compress data. This can (and should) be called multiple times to process.
+    // 'input' the input buffer, can be the full data or a chunk
+	// 'inputSize' the size of the input buffer
+	// 'output' the output buffer to write compressed data into
+	// 'outputSize' the size of the output buffer - 16 bytes is the minimum, but something 40b - 10k 
+	//              probably better depending on memory constraints.
+	// 'Result' contains the number of input bytes consumed and output bytes produced. Note that
+	//          you may need to call multiple times to process all data.
     Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
 private:

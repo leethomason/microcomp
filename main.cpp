@@ -63,29 +63,39 @@ void testComp1()
 
 int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer1 = 40) 
 {
-    static constexpr int bufferSize = 40;
-    assert(buffer0 <= bufferSize);
-    assert(buffer1 <= bufferSize);
+    static constexpr int kBufferAlloc = 40;
+    assert(buffer0 <= kBufferAlloc);
+    assert(buffer1 <= kBufferAlloc);
 
     std::vector<uint8_t> compressed;
     {
-        uint8_t working[bufferSize + 1];
-        memset(working, 0, bufferSize + 1);
+        uint8_t workingIn[kBufferAlloc + 1];
+        uint8_t workingOut[kBufferAlloc + 1];
+        memset(workingIn, 0, kBufferAlloc + 1);
+        memset(workingOut, 0, kBufferAlloc + 1);
 
         mccomp::Compressor compressor;
+
+        // Iterate over the input stream.
         size_t pos = 0;
         while (pos < fileContent.size()) {
-            mccomp::Result r = compressor.compress(
-                (const uint8_t*)(fileContent.data() + pos),
-                (int)(fileContent.size() - pos),
-                working,
-                buffer0);
+            size_t nBytes = std::min(size_t(buffer0), (fileContent.size() - pos));
 
-            assert(working[buffer0] == 0);
-            assert(r.nOutput <= buffer0);
+            // Want to test that there aren't overruns, etc,
+            // so copy the input to workingIn.
+            memcpy(workingIn, (const uint8_t*)(fileContent.data() + pos), nBytes);
+
+            mccomp::Result r = compressor.compress(
+                workingIn, int(nBytes),
+                workingOut, buffer1);
+
+            assert(workingIn[buffer0] == 0);
+            assert(workingOut[buffer1] == 0);
+            assert(r.nInput <= buffer0);
+            assert(r.nOutput <= buffer1);
 
             for (size_t i = 0; i < r.nOutput; i++)
-                compressed.push_back(working[i]);
+                compressed.push_back(workingOut[i]);
             pos += r.nInput;
         }
     }
@@ -94,28 +104,32 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
     int nTotal = 0;
 
     {
-        uint8_t working[bufferSize + 1];
-        memset(working, 0, bufferSize + 1);
+        uint8_t workingIn[kBufferAlloc + 1];
+        uint8_t workingOut[kBufferAlloc + 1];
+        memset(workingIn, 0, kBufferAlloc + 1);
+        memset(workingOut, 0, kBufferAlloc + 1);
+
         mccomp::Decompressor decompressor;
 
+        // Iterate over the output stream size.
+        // If known, could alternatively use the input stream size.
         size_t pos = 0;
         while (pos < compressed.size()) {
-            mccomp::Result r = decompressor.decompress(
-                compressed.data() + pos,
-                (int)(compressed.size() - pos),
-                working,
-                buffer1);
+            size_t nBytes = std::min(size_t(buffer0), compressed.size() - pos);
+            memcpy(workingIn, compressed.data() + pos, nBytes);
 
-            assert(working[buffer1 == 0]);
+            mccomp::Result r = decompressor.decompress(
+                workingIn, int(nBytes),
+                workingOut, buffer1);
+
+            assert(workingIn[buffer0] == 0);
+            assert(workingOut[buffer1] == 0);
+            assert(r.nInput <= buffer0);
             assert(r.nOutput <= buffer1);
 
             for (size_t i = 0; i < r.nOutput; i++)
-                uncompressed.push_back(working[i]);
+                uncompressed.push_back(workingOut[i]);
             pos += r.nInput;
-
-            if (pos == compressed.size()) {
-                decompressor.utilization(nEntries, nTotal);
-            }
         }
 
         if (log) {

@@ -61,6 +61,94 @@ void testComp1()
     TEST(out[1] == 'A');
 }
 
+int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer1 = 40) 
+{
+    static constexpr int bufferSize = 40;
+    assert(buffer0 <= bufferSize);
+    assert(buffer1 <= bufferSize);
+
+    std::vector<uint8_t> compressed;
+    {
+        uint8_t working[bufferSize + 1];
+        memset(working, 0, bufferSize + 1);
+
+        mccomp::Compressor compressor;
+        size_t pos = 0;
+        while (pos < fileContent.size()) {
+            mccomp::Result r = compressor.compress(
+                (const uint8_t*)(fileContent.data() + pos),
+                (int)(fileContent.size() - pos),
+                working,
+                buffer0);
+
+            assert(working[buffer0] == 0);
+            assert(r.nOutput <= buffer0);
+
+            for (size_t i = 0; i < r.nOutput; i++)
+                compressed.push_back(working[i]);
+            pos += r.nInput;
+        }
+    }
+    std::string uncompressed;
+    int nEntries = 0;
+    int nTotal = 0;
+
+    {
+        uint8_t working[bufferSize + 1];
+        memset(working, 0, bufferSize + 1);
+        mccomp::Decompressor decompressor;
+
+        size_t pos = 0;
+        while (pos < compressed.size()) {
+            mccomp::Result r = decompressor.decompress(
+                compressed.data() + pos,
+                (int)(compressed.size() - pos),
+                working,
+                buffer1);
+
+            assert(working[buffer1 == 0]);
+            assert(r.nOutput <= buffer1);
+
+            for (size_t i = 0; i < r.nOutput; i++)
+                uncompressed.push_back(working[i]);
+            pos += r.nInput;
+
+            if (pos == compressed.size()) {
+                decompressor.utilization(nEntries, nTotal);
+            }
+        }
+
+        if (log) {
+            std::cout << "Input: " << fileContent.size() << std::endl;
+            std::cout << "Uncompressed: " << uncompressed.size() << " Compressed: " << compressed.size() << " bytes" << std::endl;
+            std::cout << "Ratio%: " << 100.0 * compressed.size() / uncompressed.size() << std::endl;
+            std::cout << "Utilization: nEntries = " << nEntries << " / " << mccomp::kTableSize << " nTotal = " << nTotal << "\n";
+        }
+        // Verify that decompressed data matches original data
+        if (uncompressed != fileContent) {
+            std::cout << "Error: Decompressed data does not match original data!" << std::endl;
+            size_t mismatch = 0;
+            size_t line = 0;
+            while (mismatch < uncompressed.size() && mismatch < fileContent.size()) {
+                if (uncompressed[mismatch] != fileContent[mismatch]) {
+                    break;
+                }
+                if (fileContent[mismatch] == '\n')
+                    line++;
+                mismatch++;
+            }
+            std::cout << "First mismatch at byte " << mismatch << " line " << line << std::endl;
+            std::cout << uncompressed << std::endl;
+            return 1;
+        }
+        else {
+            if (log) 
+                std::cout << "Decompression verified successfully." << std::endl;
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
@@ -90,83 +178,15 @@ int main(int argc, char* argv[]) {
     std::cout << "File size: " << sz << " bytes" << std::endl;
     file.close();
     
-    std::vector<uint8_t> compressed;
-    {
-        static constexpr int bufferSize = 40;
-        uint8_t working[bufferSize + 1];
-        memset(working, 0, bufferSize + 1);
+    int rc = cycle(fileContent, true);
 
-        mccomp::Compressor compressor;
-        size_t pos = 0;
-        while (pos < fileContent.size()) {
-            mccomp::Result r = compressor.compress(
-                (const uint8_t*)(fileContent.data() + pos),
-                (int)(fileContent.size() - pos),
-                working,
-                bufferSize);
-
-            assert(working[bufferSize] == 0);
-            assert(r.nOutput <= bufferSize);
-
-            for (size_t i = 0; i < r.nOutput; i++)
-                compressed.push_back(working[i]);
-            pos += r.nInput;
-        }
-    }    
-    std::string uncompressed;
-    int nEntries = 0;
-    int nTotal = 0;
-
-    {
-        static constexpr int bufferSize = 19;
-        uint8_t working[bufferSize + 1];
-        memset(working, 0, bufferSize + 1);
-        mccomp::Decompressor decompressor;
-
-        size_t pos = 0;
-        while (pos < compressed.size()) {
-            mccomp::Result r = decompressor.decompress(
-                compressed.data() + pos,
-                (int)(compressed.size() - pos),
-                working,
-                bufferSize);
-
-            assert(working[bufferSize == 0]);
-            assert(r.nOutput <= bufferSize);
-
-            for (size_t i = 0; i < r.nOutput; i++)
-                uncompressed.push_back(working[i]);
-            pos += r.nInput;
-
-            if (pos == compressed.size()) {
-                decompressor.utilization(nEntries, nTotal);
-            }
-        }
-
-        std::cout << "Input: " << fileContent.size() << std::endl;
-        std::cout << "Uncompressed: " << uncompressed.size() << " Compressed: " << compressed.size() << " bytes" << std::endl;
-        std::cout << "Ratio%: " << 100.0 * compressed.size() / uncompressed.size() << std::endl;
-        std::cout << "Utilization: nEntries = " << nEntries << " / " << mccomp::kTableSize << " nTotal = " << nTotal << "\n";
-
-        // Verify that decompressed data matches original data
-        if (uncompressed != fileContent) {
-            std::cout << "Error: Decompressed data does not match original data!" << std::endl;
-            size_t mismatch = 0;
-            size_t line = 0;
-			while (mismatch < uncompressed.size() && mismatch < fileContent.size()) {
-                if (uncompressed[mismatch] != fileContent[mismatch]) {
-                    break;
-                }
-                if (fileContent[mismatch] == '\n')
-                    line++;
-                mismatch++;
-            }
-			std::cout << "First mismatch at byte " << mismatch << " line " << line << std::endl;
-            std::cout << uncompressed << std::endl;
-            return 1;
-        } else {
-            std::cout << "Decompression verified successfully." << std::endl;
+    for (int i = 16; i < 40; i += 3) {
+        for (int j = 16; j < 40; j += 4) {
+            rc = cycle(fileContent, false, i, j);
+            if (rc)
+                break;
         }
     }
-    return 0;
+
+    return rc;
 }

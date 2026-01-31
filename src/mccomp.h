@@ -28,8 +28,6 @@ public:
     void utilization(int& nUsed, int& nTotal) const;
 
 private:
-    static constexpr int kGCLow = 1000;
-
     int hash(uint8_t a, uint8_t b) const {
         return (a * 37 + b * 101) % kTableSize;
     }
@@ -59,6 +57,8 @@ struct Result {
 
 class Compressor {
 public:
+	// Compress data. This can (and should) be called multiple times to process, where
+	// inputSize and outputSize specify the size of the input and output buffers.
     Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
 private:
@@ -69,6 +69,7 @@ private:
 
 class Decompressor {
 public:
+	// Decompress data. This can (and should) be called multiple times to process.
     Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
     void utilization(int& nEntries, int& nTotal) const {

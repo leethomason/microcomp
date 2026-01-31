@@ -4,17 +4,16 @@
 #include <algorithm>
 #include <stdio.h>
 
-// todo: End-of-file marker
-// todo: RLE
-// todo: compression table
-// todo: low v high ascii
-
 namespace mccomp {
 
 void Table::push(uint8_t a)
 {
     assert(a != 0);
     assert(a < 128);
+	_count++;
+	if (_count % kGCLow == 0) {
+        gc(3);
+    }
 
     if (_prev == 0) {
         _prev = a;
@@ -57,6 +56,16 @@ int Table::count(int idx) const
     return _table[idx].count;
 }
 
+void Table::gc(int threshold)
+{
+    for (auto& entry : _table) {
+        if (entry.count < threshold) {
+            entry.a = 0;
+            entry.b = 0;
+            entry.count = 0;
+        }
+    }
+}
 
 int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t* out, const uint8_t* outputEnd)
 {

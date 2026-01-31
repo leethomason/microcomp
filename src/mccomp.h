@@ -8,7 +8,7 @@ namespace mccomp {
 static constexpr uint8_t kLiteral = 128;
 static constexpr uint8_t kRLEStart = 129;
 static constexpr uint8_t kRLEEnd = 136;
-static constexpr uint8_t kTableStart = 137;
+static constexpr uint8_t kTableStart = kRLEEnd + 1;
 static constexpr uint8_t kTableEnd = 255;
 
 static constexpr int kRLEMinLength = 3;
@@ -24,9 +24,13 @@ public:
     int count(int idx) const;
 
 private:
+    static constexpr int kGCLow = 1000;
+
     int hash(uint8_t a, uint8_t b) const {
         return (a * kTableSize + b) % kTableSize;
     }
+	void gc(int threshold);
+
     struct Entry {
         uint8_t a = 0;
         uint8_t b = 0;
@@ -37,6 +41,7 @@ private:
 		}
     };
     uint8_t _prev;
+    int _count = 0;
     std::array<Entry, kTableSize> _table;
 };
 

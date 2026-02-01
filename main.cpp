@@ -63,6 +63,35 @@ void testComp1()
     TEST(out[1] == 'A');
 }
 
+void testSmallBinary()
+{
+    std::array<uint8_t, 4> in = { 0, 255, 1, 254 };
+    std::array<uint8_t, 8> compressed;
+    std::array<uint8_t, 4> out;
+
+    mccomp::Compressor c;
+    mccomp::Result r = c.compress(in.data(), int(in.size()), compressed.data(), int(compressed.size()));
+    TEST(r.nInput == in.size());
+    TEST(r.nOutput <= compressed.size());
+    TEST(compressed[0] == mccomp::kLiteral);
+    TEST(compressed[1] == 0);
+    TEST(compressed[2] == mccomp::kLiteral);
+    TEST(compressed[3] == 255);
+    TEST(compressed[4] == mccomp::kLiteral);
+    TEST(compressed[5] == 1);
+    TEST(compressed[6] == mccomp::kLiteral);
+    TEST(compressed[7] == 254);
+
+    int compressedSize = r.nOutput;
+
+    mccomp::Decompressor d;
+    r = d.decompress(compressed.data(), int(compressed.size()), out.data(), int(out.size()));
+    TEST(r.nInput == compressedSize);
+    TEST(r.nOutput == 4);
+
+    TEST(out == in);
+}
+
 void testBinary()
 {
     std::array<uint8_t, 512> in;
@@ -135,18 +164,16 @@ void canonTest()
             // This is a little tricky! The readbuffer may not be consumed by one
             // call to compress(), so it needs to be iterated through.
             size_t pos = 0;
-            bool done = false;
-            do {
+            while (pos < nRead) {
                 mccomp::Result r = comp.compress(
-                    (const uint8_t*)(readBuffer + pos), 
-                    int(nRead - pos), 
-                    (uint8_t*)writeBuffer, 
+                    (const uint8_t*)(readBuffer + pos),
+                    int(nRead - pos),
+                    (uint8_t*)writeBuffer,
                     kBufferSize);
 
                 compFile.write(writeBuffer, r.nOutput);
                 pos += r.nInput;
-                done = r.done;
-            } while (!done);
+            }
         }
     }
     inFile.close();
@@ -164,8 +191,7 @@ void canonTest()
             compSize += nRead;
 
             size_t pos = 0;
-            bool done = false;
-            do {
+            while (pos < nRead) {
                 mccomp::Result r = dec.decompress(
                     (const uint8_t*)(readBuffer + pos), 
                     int(nRead - pos), 
@@ -174,8 +200,7 @@ void canonTest()
 
                 outFile.write(writeBuffer, r.nOutput);
                 pos += r.nInput;
-                done = r.done;
-            } while (!done);
+            }
         }
     }
     compFileIn.close();
@@ -291,6 +316,7 @@ int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
     RUN_TEST(testComp1());
+	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());
 

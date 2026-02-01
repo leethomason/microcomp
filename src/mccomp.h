@@ -88,10 +88,6 @@ private:
 struct Result {
     int nInput = 0;   // Number of input bytes consumed
     int nOutput = 0;  // Number of output bytes produced
-
-    bool readDone = false;
-    bool writeDone = false;
-    bool done = false;
 };
 
 // Streaming compressor using RLE and adaptive byte-pair encoding.
@@ -128,7 +124,7 @@ public:
     //   input      - Input buffer containing compressed data
     //   inputSize  - Size of input buffer in bytes
     //   output     - Output buffer for decompressed data
-    //   outputSize - Size of output buffer (40-80 bytes sufficient for microcontrollers)
+	//   outputSize - Size of output buffer.
     // 
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
@@ -141,13 +137,17 @@ public:
     }
 
 private:
+	// Returns true if flush completed all pending RLE/literal output.
+    //Result flush(const uint8_t* input, const uint8_t* inInd, uint8_t* output, const uint8_t* outEnd);
+
     // The compressor can never consume more than a byte at a time, because
     // it could always be at the end of an input buffer. The loop sets state
     // that needs to be resolved on next call or iteration.
-    int _nRLE = 0;
-	int _rleValue = -1;
-    int _nLiteral = 0;
-	int _literalValue = -1;
+    //int _nRLE = 0;
+	//int _rleValue = -1;
+    //int _nLiteral = 0;
+	//int _literalValue = -1;
+    int _carry = -1;
     Table _table;  // Adaptive byte-pair lookup table (must match compressor's table)
 };
 

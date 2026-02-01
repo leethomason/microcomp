@@ -139,7 +139,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             out += 2;
             continue;
         }
-        
+
         const uint8_t byte = *in;
         const uint8_t nextByte = (in + 1 < inEnd) ? *(in + 1) : 0;
 
@@ -158,7 +158,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
                 continue;
             }
         }
-        
+
         // Emit as literal
         if (!isAscii(byte)) {
             // High-bit values need escape sequence: kLiteral marker + value
@@ -177,14 +177,72 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             *out++ = *in++;
         }
     }
-    Result result;
-    result.nInput = static_cast<int>(in - input);
-    result.nOutput = static_cast<int>(out - output);
-    result.readDone = in == inEnd;
-    result.writeDone = true; // the compressor won't write to out unless there is space, so it's always done
-    result.done = result.readDone && result.writeDone;
+    Result result{
+        static_cast<int>(in - input),
+        static_cast<int>(out - output)
+    };
     return result;
 }
+
+/*
+Result Decompressor::flush(const uint8_t* in, const uint8_t* inEnd, uint8_t* out, const uint8_t* outEnd)
+{
+	const uint8_t* input = in;
+	const uint8_t* output = out;
+
+    if (_nRLE) {
+        assert(_nLiteral == 0);
+        assert(_literalValue < 0);
+
+        if (_rleValue < 0) {
+            if (in >= inEnd) {
+                return Result {
+                    0, 0, false
+                };
+            }
+            _rleValue = *in++;
+        }
+        int n = std::min(_nRLE, int(outEnd - out));
+        _nRLE -= n;
+        while (n--)
+            *out++ = uint8_t(_rleValue);
+        if (_nRLE == 0)
+            _rleValue = -1;
+        return Result {
+            static_cast<int>(in - input),
+            static_cast<int>(out - output),
+            _nRLE == 0
+		};
+    }
+
+    if (_nLiteral) {
+		assert(_nRLE == 0);
+        assert(_rleValue < 0);
+
+        if (_literalValue < 0) {
+			if (in >= inEnd) {
+                return Result {
+                    0, 0, false
+				};
+            }
+            _literalValue = *in++;
+        }
+        int n = std::min(_nLiteral, int(outEnd - out));
+        _nLiteral -= n;
+        while (n--)
+            *out++ = uint8_t(_literalValue);
+        if (_nLiteral == 0)
+            _literalValue = -1;
+        return Result{
+            static_cast<int>(in - input),
+            static_cast<int>(out - output),
+            _nLiteral == 0
+        };
+    }
+	assert(false); // Nothing to flush
+    return Result{ 0, 0, true };
+}
+*/
 
 Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
 {
@@ -192,54 +250,69 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     const uint8_t* inEnd = input + inputSize;
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
-
-    while (out < outEnd) {
-        // Flush RLE
-        if (_nRLE) {
-            if (_rleValue < 0) {
-                _rleValue = *in++;
-                continue;
+    /*
+    while ((in < inEnd && out < outEnd) || _nRLE || _nLiteral) {
+        if (_nRLE > 0 || _nLiteral > 0) {
+            Result r = flush(in, inEnd, out, outEnd);
+			in += r.nInput;
+			out += r.nOutput;
+            if (!r.done) {
+                // We could not complete the flush!
+                return Result{
+                    static_cast<int>(in - input),
+                    static_cast<int>(out - output),
+                    false   // need more data
+                };
             }
-            int n = std::min(_nRLE, int(outEnd - out));
-            _nRLE -= n;
-            while (n--)
-                *out++ = uint8_t(_rleValue);
-            if (_nRLE == 0)
-                _rleValue = -1;
-            continue;
-        }
-        // Flush literal
-        if (_nLiteral) {
-            if (_literalValue < 0) {
-                assert(_literalValue < 0);
-                _literalValue = *in++;
-                continue;
+            // Are we all done?
+            assert(_nRLE == 0);
+            assert(_nLiteral == 0);
+            if (in == inEnd) {
+                return Result{
+                    static_cast<int>(in - input),
+                    static_cast<int>(out - output),
+                    true
+                };
             }
-            int n = std::min(_nLiteral, int(outEnd - out));
-            _nLiteral -= n;
-            while (n--)
-                *out++ = uint8_t(_literalValue);
-            if (_nLiteral == 0)
-                _literalValue = -1;
-            continue;
+        }
+        */
+    while(in < inEnd && out < outEnd) {
+        uint8_t byte = *in;
+        if (_carry >= 0) {
+            byte = uint8_t(_carry);
+            in--;
+            _carry = -1;
         }
 
-        // Now that the RLE and literal is flushed, we need input!
-        if (in >= inEnd) {
-            break;
-        }
-        
-        const uint8_t byte = *in;
         if (byte >= kRLEStart && byte <= kRLEEnd) {
-            _nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
+            int nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
+
+            static constexpr int kInReq = 2;
+            int kOutReq = 1 + nRLE;
+			if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+                if (in + 1 == inEnd) {
+					_carry = byte;
+                    ++in;
+                    break;
+                }
+                break; // Not enough input or output space
+            }
+
             ++in; // consume marker
-            _rleValue = -1;
+            // RLEs are not pushed to the Table
+			uint8_t value = *in++;
+            for (int i = 0; i < nRLE; i++) {
+                *out++ = value;
+			}
             continue;
         }
         else if (byte >= kTableStart && byte <= kTableEnd) {
-            if (out + 2 > outEnd) {
-                break; // Not enough output space
+            static constexpr int kInReq = 1;
+			static constexpr int kOutReq = 2;
+            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+                break; // Not enough input or output space
             }
+
             uint8_t a, b;
             _table.get(byte - kTableStart, a, b);
             _table.push(a);
@@ -247,12 +320,21 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
             in++;
             *out++ = a;
             *out++ = b;
+            continue;
         }
         else if (byte == kLiteral) {
             // Literal escape sequence: marker + value (2 bytes total)
-            _nLiteral = 1;
+            static constexpr int kInReq = 2;
+            static constexpr int kOutReq = 1;
+            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+				if (in + 1 == inEnd) {
+					_carry = kLiteral;
+					++in; // consume marker
+                }
+                break; // Not enough input or output space
+            }
             ++in;   // consume marker
-            _literalValue = -1;
+			*out++ = *in++;
             continue;
         }
         else {
@@ -260,13 +342,10 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
             *out++ = *in++;
         }
     }
-    Result result;
-    result.nInput = static_cast<int>(in - input);
-    result.nOutput = static_cast<int>(out - output);
-    result.readDone = in == inEnd;
-    result.writeDone = (_literalValue < 0) && (_rleValue < 0);
-    result.done = result.readDone && result.writeDone;
-    return result;
+    return Result{
+        static_cast<int>(in - input),
+        static_cast<int>(out - output)
+    };
 }
 
 } // namespace mccomp

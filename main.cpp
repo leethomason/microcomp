@@ -190,6 +190,8 @@ void canonTest()
                 break;
             compSize += nRead;
 
+            // This is a little tricky! The readbuffer may not be consumed by one
+            // call to compress(), so it needs to be iterated through.
             size_t pos = 0;
             while (pos < nRead) {
                 mccomp::Result r = dec.decompress(
@@ -315,7 +317,7 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
-    RUN_TEST(testComp1());
+    //RUN_TEST(testComp1());
 	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());

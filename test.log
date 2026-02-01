@@ -16,21 +16,17 @@ Hello, World!
 こんにちは世界 (Japanese)
 안녕하세요 세계 (Korean)
 
-// Random readme:
+A simple byte-pair compression library in C++, designed for microcontrollers
+and compressed log file processing.
 
-Tested on Windows, Linux, and OSX.
+MCComp works on any data (UTF-8, binary, etc.) but is optimized for low-ASCII
+text data. It provides efficient compression without external dependencies or
+memory allocation.
 
-Ionic is a simple library for outputting tables to the console. It can print
-in color, line break, align text, and supports several output styles.
-Ionic is simple; it doesn't have a lot of features, but it's easy to use, and
-runs reasonably efficiently.
-
-Ionic is similar to Tabulate (<https://github.com/p-ranav/tabulate>) but it is
-much simpler, both in code and features. Ionic has built-in support for
-terminal width, which is a convenience Tabulate does not have.
-
-It has no dependencies beyond C++ 17. Ionic does have platform code - it calls
-windows / linux / osx functions to initialize the console and query size.
+It was made to compress log files on a microcontroller before being written
+to slow flash storage, and then decompressing on the same microcontroller
+when reading back. It's a narrow use case, and perhaps not widely useful, but
+it was fun to make and I hope others find it useful.
 
 Jun 15 04:12:43 combo su(pam_unix)[22644]: session closed for user news
 Jun 15 12:12:34 combo sshd(pam_unix)[23397]: check pass; user unknown
@@ -123,4 +119,63 @@ Jun 18 01:30:59 combo sshd(pam_unix)[31198]: check pass; user unknown
 Jun 18 01:30:59 combo sshd(pam_unix)[31198]: authentication failure; logname= uid=0 euid=0 tty=NODEVssh ruser= rhost=adsl-70-242-75-179.dsl.ksc2mo.swbell.net 
 Jun 18 01:30:59 combo sshd(pam_unix)[31202]: check pass; user unknown
 
-
+03-17 16:13:38.811  1702  2395 D WindowManager: printFreezingDisplayLogsopening app wtoken = AppWindowToken{9f4ef63 token=Token{a64f992 ActivityRecord{de9231d u0 com.tencent.qt.qtl/.activity.info.NewsDetailXmlActivity t761}}}, allDrawn= false, startingDisplayed =  false, startingMoved =  false, isRelaunching =  false
+03-17 16:13:38.819  1702  8671 D PowerManagerService: acquire lock=233570404, flags=0x1, tag="View Lock", name=com.android.systemui, ws=null, uid=10037, pid=2227
+03-17 16:13:38.820  1702  8671 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x23,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:38.839  1702  2113 V WindowManager: Skipping AppWindowToken{df0798e token=Token{78af589 ActivityRecord{3b04890 u0 com.tencent.qt.qtl/com.tencent.video.player.activity.PlayerActivity t761}}} -- going to hide
+03-17 16:13:38.859  2227  2227 D TextView: visible is system.time.showampm
+03-17 16:13:38.861  2227  2227 D TextView: mVisiblity.getValue is false
+03-17 16:13:38.869  2227  2227 D TextView: visible is system.charge.show
+03-17 16:13:38.871  2227  2227 D TextView: mVisiblity.getValue is false
+03-17 16:13:38.875  2227  2227 D TextView: visible is system.call.count gt 0
+03-17 16:13:38.877  2227  2227 D TextView: mVisiblity.getValue is false
+03-17 16:13:38.881  2227  2227 D TextView: visible is system.message.count gt 0
+03-17 16:13:38.882  2227  2227 D TextView: mVisiblity.getValue is false
+03-17 16:13:38.887  2227  2227 D TextView: visible is system.ownerinfo.show
+03-17 16:13:38.888  2227  2227 D TextView: mVisiblity.getValue is false
+03-17 16:13:38.905  1702 10454 D PowerManagerService: release:lock=233570404, flg=0x0, tag="View Lock", name=com.android.systemui", ws=null, uid=10037, pid=2227
+03-17 16:13:38.907  1702 10454 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x23,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:38.915  1702  3693 V WindowManager: Skipping AppWindowToken{df0798e token=Token{78af589 ActivityRecord{3b04890 u0 com.tencent.qt.qtl/com.tencent.video.player.activity.PlayerActivity t761}}} -- going to hide
+03-17 16:13:38.928  2227  2227 I StackScrollAlgorithm: updateClipping isOverlap:false, getTopPadding=333.0, Translation=-24.0
+03-17 16:13:38.928  2227  2227 I StackScrollAlgorithm: updateDimmedActivatedHideSensitive overlap:false
+03-17 16:13:38.935  1702  3697 W ActivityManager: getRunningAppProcesses: caller 10113 does not hold REAL_GET_TASKS; limiting output
+03-17 16:13:38.936  1702 14638 D PowerManagerService: release:lock=189667585, flg=0x0, tag="*launch*", name=android", ws=WorkSource{10113}, uid=1000, pid=1702
+03-17 16:13:38.938  1702 14638 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x23,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:38.954  2227  2227 I PhoneStatusBar: setSystemUiVisibility vis=40000500 mask=ffffffff oldVal=508 newVal=40000500 diff=40000008 fullscreenStackVis=0 dockedStackVis=0, fullscreenStackBounds=Rect(0, 0 - 720, 1280), dockedStackBounds=Rect(0, 0 - 0, 0)
+03-17 16:13:38.955  2227  2227 I PhoneStatusBar: cancelAutohide
+03-17 16:13:38.955  2227  2227 I PhoneStatusBar: notifyUiVisibilityChanged:vis=0x40000500, SystemUiVisibility=0x40000500
+03-17 16:13:38.994  1702 27365 I WindowManager: Destroying surface Surface(name=SurfaceView - com.tencent.qt.qtl/com.tencent.video.player.activity.PlayerActivity) called by com.android.server.wm.WindowStateAnimator.destroyDeferredSurfaceLocked:942 com.android.server.wm.WindowManagerService.performDeferredDestroyWindow:3407 com.android.server.wm.Session.performDeferredDestroy:225 android.view.IWindowSession$Stub.onTransact:398 com.android.server.wm.Session.onTransact:136 android.os.Binder.execTransact:565 <bottom of call stack> <bottom of call stack> 
+03-17 16:13:39.006  1702  2639 I WindowManager: Destroying surface Surface(name=com.tencent.qt.qtl/com.tencent.video.player.activity.PlayerActivity) called by com.android.server.wm.WindowStateAnimator.destroySurface:2060 com.android.server.wm.WindowStateAnimator.destroySurfaceLocked:913 com.android.server.wm.WindowState.destroyOrSaveSurface:2201 com.android.server.wm.WindowManagerService.tryStartExitingAnimation:3299 com.android.server.wm.WindowManagerService.relayoutWindow:3179 com.android.server.wm.Session.relayout:215 android.view.IWindowSession$Stub.onTransact:286 com.android.server.wm.Session.onTransact:136 
+03-17 16:13:39.010  1702  2639 D PowerManagerService: release:lock=62617001, flg=0x0, tag="WindowManager", name=android", ws=WorkSource{10113}, uid=1000, pid=1702
+03-17 16:13:39.011  1702  2639 D PowerManagerService: userActivityNoUpdateLocked: eventTime=261843648, event=0, flags=0x1, uid=1000
+03-17 16:13:39.011  1702  2639 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:39.069  1702  1815 I WindowManager: orientation change is complete, call stopFreezingDisplayLocked
+03-17 16:13:39.070  1702  1815 I WindowManager: Screen frozen for +1s0ms due to Window{ca98d5 u0 com.tencent.qt.qtl/com.tencent.qt.qtl.activity.info.NewsDetailXmlActivity}
+03-17 16:13:39.070  1702  1815 D WindowManager: startAnimation begin
+03-17 16:13:39.079  1702  1815 D WindowManager: startAnimation end
+03-17 16:13:39.080  1702  1815 D PowerManagerService: release:lock=226887582, flg=0x0, tag="SCREEN_FROZEN", name=android", ws=null, uid=1000, pid=1702
+03-17 16:13:39.080  1702  1815 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:39.095  1702  8671 I AlarmManager: remove(PendingIntent{19abed0: PendingIntentRecord{a485420 com.tencent.qt.qtl broadcastIntent}}) changed bounds; rebatching
+03-17 16:13:39.207  1702  1815 I WindowManager: rotationForOrientationLw(orient=1, last=0); user=0 USER_ROTATION_LOCKED
+03-17 16:13:39.207  1702  1815 I WindowManager: Application requested orientation 1, got rotation 0 which has compatible metrics
+03-17 16:13:40.142  1702  2618 D PowerManagerService: acquire lock=166121161, flags=0x1, tag="RILJ_ACK_WL", name=com.android.phone, ws=null, uid=1001, pid=2626
+03-17 16:13:40.143  1702  2618 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.146  1702  2555 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.147  1702  2633 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.148  1702  2395 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.150  1702  2556 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.190  1702  2250 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.241  2626  8682 W PhoneInterfaceManager: shouldBlockLocation running ...
+03-17 16:13:40.241  2626  8682 I PhoneInterfaceManager: shouldBlockLocation  ret:false
+03-17 16:13:40.280  2626  2642 W PhoneInterfaceManager: shouldBlockLocation running ...
+03-17 16:13:40.280  2626  2642 I PhoneInterfaceManager: shouldBlockLocation  ret:false
+03-17 16:13:40.305  3664  3807 D TelephonyManager: getNeighboringCellInfo calling app is com.amap.android.ams
+03-17 16:13:40.307  2626 23469 W PhoneInterfaceManager: shouldBlockLocation running ...
+03-17 16:13:40.308  2626 23469 I PhoneInterfaceManager: shouldBlockLocation  ret:false
+03-17 16:13:40.309  1702  2395 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.319  1702 17630 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.322  2626  2809 W PhoneInterfaceManager: shouldBlockLocation running ...
+03-17 16:13:40.322  2626  2809 I PhoneInterfaceManager: shouldBlockLocation  ret:false
+03-17 16:13:40.324  1702  2113 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.332  1702 27357 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0
+03-17 16:13:40.334  1702 27357 D PowerManagerService: ready=true,policy=3,wakefulness=1,wksummary=0x1,uasummary=0x1,bootcompleted=true,boostinprogress=false,waitmodeenable=false,mode=false,manual=38,auto=-1,adj=0.0userId=0

@@ -25,7 +25,7 @@ static constexpr uint8_t kTableStart = 128;
 static constexpr uint8_t kTableEnd = 255;
 
 // RLE encoding parameters
-static constexpr int kRLEMinLength = 3;  // Minimum run length worth encoding
+static constexpr int kRLEMinLength = 3;
 static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;  // Max: 11 bytes
 static constexpr int kTableSize = kTableEnd - kTableStart + 1;  // 128 entries
 
@@ -128,7 +128,7 @@ public:
     // 
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
-    //   Call again with remaining data if nInput < inputSize.
+	//   Repeat calls until all data is decompressed.
     Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
     // Get statistics about table usage (for debugging and optimization)
@@ -137,18 +137,9 @@ public:
     }
 
 private:
-	// Returns true if flush completed all pending RLE/literal output.
-    //Result flush(const uint8_t* input, const uint8_t* inInd, uint8_t* output, const uint8_t* outEnd);
-
-    // The compressor can never consume more than a byte at a time, because
-    // it could always be at the end of an input buffer. The loop sets state
-    // that needs to be resolved on next call or iteration.
-    //int _nRLE = 0;
-	//int _rleValue = -1;
-    //int _nLiteral = 0;
-	//int _literalValue = -1;
-    int _carry = -1;
-    Table _table;  // Adaptive byte-pair lookup table (must match compressor's table)
+    int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
+	                    // In that case, we store it here to process on the next call.
+    Table _table;       // Adaptive byte-pair lookup table (must match compressor's table)
 };
 
 }

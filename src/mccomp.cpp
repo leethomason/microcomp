@@ -131,7 +131,9 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     const uint8_t* outEnd = output + outputSize;
 
     while (in < inEnd && out < outEnd) {
-        // Try RLE encoding first
+        // Try RLE encoding first. There are some log files with a 
+        // lot of space runs, dashes, 0 leads on numbers, where
+		// this is a significant win.
         const int rleBytes = writeRLE(in, inEnd, out, outEnd);
         if (rleBytes > 0) {
             // RLE succeeded and already wrote 2 bytes
@@ -184,98 +186,13 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     return result;
 }
 
-/*
-Result Decompressor::flush(const uint8_t* in, const uint8_t* inEnd, uint8_t* out, const uint8_t* outEnd)
-{
-	const uint8_t* input = in;
-	const uint8_t* output = out;
-
-    if (_nRLE) {
-        assert(_nLiteral == 0);
-        assert(_literalValue < 0);
-
-        if (_rleValue < 0) {
-            if (in >= inEnd) {
-                return Result {
-                    0, 0, false
-                };
-            }
-            _rleValue = *in++;
-        }
-        int n = std::min(_nRLE, int(outEnd - out));
-        _nRLE -= n;
-        while (n--)
-            *out++ = uint8_t(_rleValue);
-        if (_nRLE == 0)
-            _rleValue = -1;
-        return Result {
-            static_cast<int>(in - input),
-            static_cast<int>(out - output),
-            _nRLE == 0
-		};
-    }
-
-    if (_nLiteral) {
-		assert(_nRLE == 0);
-        assert(_rleValue < 0);
-
-        if (_literalValue < 0) {
-			if (in >= inEnd) {
-                return Result {
-                    0, 0, false
-				};
-            }
-            _literalValue = *in++;
-        }
-        int n = std::min(_nLiteral, int(outEnd - out));
-        _nLiteral -= n;
-        while (n--)
-            *out++ = uint8_t(_literalValue);
-        if (_nLiteral == 0)
-            _literalValue = -1;
-        return Result{
-            static_cast<int>(in - input),
-            static_cast<int>(out - output),
-            _nLiteral == 0
-        };
-    }
-	assert(false); // Nothing to flush
-    return Result{ 0, 0, true };
-}
-*/
-
 Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
-    /*
-    while ((in < inEnd && out < outEnd) || _nRLE || _nLiteral) {
-        if (_nRLE > 0 || _nLiteral > 0) {
-            Result r = flush(in, inEnd, out, outEnd);
-			in += r.nInput;
-			out += r.nOutput;
-            if (!r.done) {
-                // We could not complete the flush!
-                return Result{
-                    static_cast<int>(in - input),
-                    static_cast<int>(out - output),
-                    false   // need more data
-                };
-            }
-            // Are we all done?
-            assert(_nRLE == 0);
-            assert(_nLiteral == 0);
-            if (in == inEnd) {
-                return Result{
-                    static_cast<int>(in - input),
-                    static_cast<int>(out - output),
-                    true
-                };
-            }
-        }
-        */
+
     while(in < inEnd && out < outEnd) {
         uint8_t byte = *in;
         if (_carry >= 0) {
@@ -339,7 +256,8 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
         }
         else {
             _table.push(byte);
-            *out++ = *in++;
+            *out++ = byte;
+			in++;
         }
     }
     return Result{

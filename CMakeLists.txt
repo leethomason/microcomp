@@ -17,3 +17,6 @@ set(SRC
 )
 
 add_executable(mccomp ${SRC})  
+
+set_target_properties(mccomp PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "..")
+

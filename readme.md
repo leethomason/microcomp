@@ -29,7 +29,10 @@ It was inspired by https://github.com/antirez/smaz and
 https://github.com/Ed-von-Schleck/shoco, which both are very nifty
 libraries. but they have the drawback of requiring a dictionary
 (possibly purpose built for a given corpus) which I wanted to avoid.
-MCComp uses similar ideas but builds its dictionary on the fly.
+MCComp uses similar ideas but builds its dictionary on the fly. Also
+https://qoiformat.org/ for exploring simple compression schemes.
+
+Thanks to https://github.com/logpai/loghub for test files.
 
 ## Algorithm
 

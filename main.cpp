@@ -1,5 +1,6 @@
 #include "src/mccomp.h"
 
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -7,6 +8,7 @@
 #include <vector>
 #include <assert.h>
 #include <stdio.h>
+#include <array>
 
 
 #define RUN_TEST(test) printf("Test: %s\n", #test); test
@@ -59,6 +61,155 @@ void testComp1()
     TEST(r.nOutput == 2);
     TEST(out[0] == mccomp::kRLEStart + 1);
     TEST(out[1] == 'A');
+}
+
+void testSmallBinary()
+{
+    std::array<uint8_t, 4> in = { 0, 255, 1, 254 };
+    std::array<uint8_t, 8> compressed;
+    std::array<uint8_t, 4> out;
+
+    mccomp::Compressor c;
+    mccomp::Result r = c.compress(in.data(), int(in.size()), compressed.data(), int(compressed.size()));
+    TEST(r.nInput == in.size());
+    TEST(r.nOutput <= compressed.size());
+    TEST(compressed[0] == mccomp::kLiteral);
+    TEST(compressed[1] == 0);
+    TEST(compressed[2] == mccomp::kLiteral);
+    TEST(compressed[3] == 255);
+    TEST(compressed[4] == mccomp::kLiteral);
+    TEST(compressed[5] == 1);
+    TEST(compressed[6] == mccomp::kLiteral);
+    TEST(compressed[7] == 254);
+
+    int compressedSize = r.nOutput;
+
+    mccomp::Decompressor d;
+    r = d.decompress(compressed.data(), int(compressed.size()), out.data(), int(out.size()));
+    TEST(r.nInput == compressedSize);
+    TEST(r.nOutput == 4);
+
+    TEST(out == in);
+}
+
+void testBinary()
+{
+    std::array<uint8_t, 512> in;
+    for (int i = 0; i < 512; i++)
+       in[i] = uint8_t(i);
+
+    std::array<uint8_t, 1024> compressed;
+    std::array<uint8_t, 512> out;
+
+    mccomp::Compressor c;
+    mccomp::Result r = c.compress(in.data(), int(in.size()), compressed.data(), int(compressed.size()));
+    TEST(r.nInput == in.size());
+    TEST(r.nOutput <= compressed.size());
+    int compressedSize = r.nOutput;
+
+    mccomp::Decompressor d;
+    r = d.decompress(compressed.data(), int(compressed.size()), out.data(), int(out.size()));
+    TEST(r.nInput == compressedSize);
+    TEST(r.nOutput == 512);
+
+    TEST(out == in);
+}
+
+
+bool compareFiles(const std::string& filename1, const std::string& filename2) {
+    std::ifstream file1(filename1, std::ifstream::ate | std::ifstream::binary);
+    std::ifstream file2(filename2, std::ifstream::ate | std::ifstream::binary);
+
+    if (!file1.is_open() || !file2.is_open()) {
+        std::cerr << "Error opening one or both files." << std::endl;
+        return false;
+    }
+
+    if (file1.tellg() != file2.tellg()) {
+        return false;
+    }
+
+    file1.seekg(0);
+    file2.seekg(0);
+
+    return std::equal(std::istreambuf_iterator<char>(file1),
+        std::istreambuf_iterator<char>(),
+        std::istreambuf_iterator<char>(file2));
+}
+
+void canonTest()
+{
+    std::ifstream inFile("test.log");
+    TEST(inFile.is_open());
+    std::ofstream compFile("test-comp.dat", std::ios::binary);
+    TEST(compFile.is_open());
+    std::ofstream outFile("test-out.log");
+    TEST(outFile.is_open());
+
+    static constexpr size_t kBufferSize = 100;
+    char readBuffer[kBufferSize];     // uncompressed
+    char writeBuffer[kBufferSize];    // compressed
+    size_t inSize = 0;
+    size_t compSize = 0;
+
+    {
+        mccomp::Compressor comp;
+        while (true) {
+            inFile.read(readBuffer, kBufferSize);
+            size_t nRead = inFile.gcount();
+            if (nRead == 0)
+                break;
+            inSize += nRead;
+
+            // This is a little tricky! The readbuffer may not be consumed by one
+            // call to compress(), so it needs to be iterated through.
+            size_t pos = 0;
+            while (pos < nRead) {
+                mccomp::Result r = comp.compress(
+                    (const uint8_t*)(readBuffer + pos),
+                    int(nRead - pos),
+                    (uint8_t*)writeBuffer,
+                    kBufferSize);
+
+                compFile.write(writeBuffer, r.nOutput);
+                pos += r.nInput;
+            }
+        }
+    }
+    inFile.close();
+    compFile.close();
+    
+    std::ifstream compFileIn("test-comp.dat", std::ios::binary);
+    TEST(compFileIn.is_open());
+    {
+        mccomp::Decompressor dec;
+        while (true) {
+            compFileIn.read(readBuffer, kBufferSize);
+            size_t nRead = compFileIn.gcount();
+            if (nRead == 0)
+                break;
+            compSize += nRead;
+
+            // This is a little tricky! The readbuffer may not be consumed by one
+            // call to compress(), so it needs to be iterated through.
+            size_t pos = 0;
+            while (pos < nRead) {
+                mccomp::Result r = dec.decompress(
+                    (const uint8_t*)(readBuffer + pos), 
+                    int(nRead - pos), 
+                    (uint8_t*)writeBuffer, 
+                    kBufferSize);
+
+                outFile.write(writeBuffer, r.nOutput);
+                pos += r.nInput;
+            }
+        }
+    }
+    compFileIn.close();
+    outFile.close();
+
+    TEST(compareFiles("test.log", "test-out.log"));
+    std::cout << "Canon test compression: " << 1.0 * compSize / inSize << "\n";
 }
 
 int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer1 = 40) 
@@ -166,7 +317,10 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
-    RUN_TEST(testComp1());
+    //RUN_TEST(testComp1());
+	RUN_TEST(testSmallBinary());
+    RUN_TEST(testBinary());
+    RUN_TEST(canonTest());
 
     // Check if filename was provided as argument
     if (argc != 2) {

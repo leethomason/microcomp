@@ -131,7 +131,9 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     const uint8_t* outEnd = output + outputSize;
 
     while (in < inEnd && out < outEnd) {
-        // Try RLE encoding first
+        // Try RLE encoding first. There are some log files with a 
+        // lot of space runs, dashes, 0 leads on numbers, where
+		// this is a significant win.
         const int rleBytes = writeRLE(in, inEnd, out, outEnd);
         if (rleBytes > 0) {
             // RLE succeeded and already wrote 2 bytes
@@ -139,7 +141,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             out += 2;
             continue;
         }
-        
+
         const uint8_t byte = *in;
         const uint8_t nextByte = (in + 1 < inEnd) ? *(in + 1) : 0;
 
@@ -158,7 +160,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
                 continue;
             }
         }
-        
+
         // Emit as literal
         if (!isAscii(byte)) {
             // High-bit values need escape sequence: kLiteral marker + value
@@ -177,7 +179,11 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
             *out++ = *in++;
         }
     }
-    return {static_cast<int>(in - input), static_cast<int>(out - output)};
+    Result result{
+        static_cast<int>(in - input),
+        static_cast<int>(out - output)
+    };
+    return result;
 }
 
 Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
@@ -187,27 +193,43 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
 
-    while (in < inEnd && out < outEnd) {
-        const uint8_t byte = *in;
-        
+    while(in < inEnd && out < outEnd) {
+        uint8_t byte = *in;
+        if (_carry >= 0) {
+            byte = uint8_t(_carry);
+            in--;
+            _carry = -1;
+        }
+
         if (byte >= kRLEStart && byte <= kRLEEnd) {
-            // RLE sequence: marker + value (2 bytes total)
-            if (in + 2 > inEnd) {
-                break; // Not enough input
+            int nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
+
+            static constexpr int kInReq = 2;
+            int kOutReq = 1 + nRLE;
+			if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+                if (in + 1 == inEnd) {
+					_carry = byte;
+                    ++in;
+                    break;
+                }
+                break; // Not enough input or output space
             }
-            const int runLength = static_cast<int>(byte - kRLEStart + kRLEMinLength);
-            if (out + runLength > outEnd) {
-                break; // Not enough output space
-            }
-            in++; // Consume marker
-            const uint8_t value = *in++; // Consume value
-            std::fill(out, out + runLength, value);
-            out += runLength;
+
+            ++in; // consume marker
+            // RLEs are not pushed to the Table
+			uint8_t value = *in++;
+            for (int i = 0; i < nRLE; i++) {
+                *out++ = value;
+			}
+            continue;
         }
         else if (byte >= kTableStart && byte <= kTableEnd) {
-            if (out + 2 > outEnd) {
-                break; // Not enough output space
+            static constexpr int kInReq = 1;
+			static constexpr int kOutReq = 2;
+            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+                break; // Not enough input or output space
             }
+
             uint8_t a, b;
             _table.get(byte - kTableStart, a, b);
             _table.push(a);
@@ -215,28 +237,33 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
             in++;
             *out++ = a;
             *out++ = b;
+            continue;
         }
         else if (byte == kLiteral) {
             // Literal escape sequence: marker + value (2 bytes total)
-            if (in + 2 > inEnd) {
-                break; // Not enough input
+            static constexpr int kInReq = 2;
+            static constexpr int kOutReq = 1;
+            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+				if (in + 1 == inEnd) {
+					_carry = kLiteral;
+					++in; // consume marker
+                }
+                break; // Not enough input or output space
             }
-            if (out + 1 > outEnd) {
-                break; // Not enough output space
-            }
-            in++; // Consume marker
-            *out++ = *in++; // Consume and write value
+            ++in;   // consume marker
+			*out++ = *in++;
+            continue;
         }
         else {
-            // Direct literal value
-            if (out + 1 > outEnd) {
-                break; // Not enough output space
-            }
             _table.push(byte);
-            *out++ = *in++;
+            *out++ = byte;
+			in++;
         }
     }
-    return {static_cast<int>(in - input), static_cast<int>(out - output)};
+    return Result{
+        static_cast<int>(in - input),
+        static_cast<int>(out - output)
+    };
 }
 
 } // namespace mccomp

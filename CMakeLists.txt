@@ -1,49 +1,41 @@
 cmake_minimum_required(VERSION 3.11)
 project(mccomp)
 
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Compiler warnings
 if(MSVC)
-  add_compile_options(/W4)
+    add_compile_options(/W4)
 else()
-  add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(SOURCES
+# Library source files
+add_library(mccomp STATIC
     src/mccomp.cpp
-)
-set(HEADERS
     src/mccomp.h
 )
 
-add_library(mccomp STATIC ${SOURCES} ${HEADERS})
-
-# Create an alias for the library with a namespace
+# Create an alias with namespace for consistent usage
 add_library(mccomp::mccomp ALIAS mccomp)
 
-target_include_directories(mccomp
-    PRIVATE
-        # where the library itself will look for its internal headers
-        "src"
-    PUBLIC
-        # where top-level project will look for the library's public headers
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-        # where external projects will look for the library's public headers
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+# Configure include directories for FetchContent compatibility
+target_include_directories(mccomp PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:include>
 )
 
-# Set additional properties for the library
+# Set library properties
 set_target_properties(mccomp PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    CXX_VISIBILITY_PRESET hidden
-    VISIBILITY_INLINES_HIDDEN ON
+    PUBLIC_HEADER "src/mccomp.h"
 )
 
-set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${HEADERS}")
-
-# Only build tests if this is the top-level project
+# Only build tests when this is the top-level project
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    add_executable(mccomp_test "main.cpp")  
-    target_link_libraries(mccomp_test ionic)
+    add_executable(mccomp_test main.cpp)
+    target_link_libraries(mccomp_test mccomp::mccomp)
+    set_target_properties(mccomp_test PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "..")
 endif()

@@ -317,7 +317,7 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
-    //RUN_TEST(testComp1());
+    RUN_TEST(testComp1());
 	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());

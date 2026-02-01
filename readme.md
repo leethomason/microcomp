@@ -20,6 +20,7 @@ it was fun to make and I hope others find it useful.
 * Incremental processing of data in chunks
 * Compressor and decompressor use less than 600 bytes each
 * No table or dictionary is stored in the compressed data
+* Optimized for low-ASCII text data, but works on any data
 
 ## Performance
 
@@ -32,7 +33,7 @@ https://github.com/Ed-von-Schleck/shoco, which both are very nifty
 libraries. but they have the drawback of requiring a dictionary
 (possibly purpose built for a given corpus) which I wanted to avoid.
 MicroComp uses similar ideas but builds its dictionary on the fly. Also
-https://qoiformat.org/ for exploring simple compression schemes.
+thanks to https://qoiformat.org/ for exploring simple compression schemes.
 
 Thanks to https://github.com/logpai/loghub for test files.
 
@@ -75,7 +76,7 @@ For an example of this, check out `canonTest()` in `main.cpp`.
 The steps are:
 
 1. Create a `Compressor` or `Decompressor` object.
-2. Create input and output buffers. These can be re-usued across calls. Anything from 16 bytes
+2. Create input and output buffers. These can be re-used across calls. Anything from 16 bytes
    or larger should work fine. Around 40-100 bytes is a good size, if you have the stack space.
 
 The inner loop for compression:
@@ -131,6 +132,17 @@ Likewise for decompression:
         }
     }
 ```
+
+## Future Work
+
+* RLE size of 3 is a compression ratio of 0.66, which is okay. Should the smallest run
+  be longer? Should very long runs be supported - using power of two instead of linear?
+* Table eviction is simple and elegant, but perhaps not optimal. How frequently should 
+  it step?
+* Literals could / should be stored as runs similar to RLE. This would more efficiently 
+  encode UTF-8 text and non-English text.
+* The table hashing is super fast and very simple and the compression is sensitive
+  to the hash function. Is there a better hash function that is still fast?
 
 ## License
 

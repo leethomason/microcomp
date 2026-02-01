@@ -1,4 +1,5 @@
 #include "mccomp.h"
+
 #include <cassert>
 #include <cstring>
 #include <algorithm>

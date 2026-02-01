@@ -26,8 +26,8 @@ static constexpr uint8_t kTableEnd = 255;
 
 // RLE encoding parameters
 static constexpr int kRLEMinLength = 3;
-static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;  // Max: 11 bytes
-static constexpr int kTableSize = kTableEnd - kTableStart + 1;  // 128 entries
+static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;
+static constexpr int kTableSize = kTableEnd - kTableStart + 1;
 
 // Check if a byte falls in the regular ASCII range.
 // These bytes can be passed through without encoding/escaping.
@@ -60,11 +60,15 @@ public:
     void utilization(int& nUsed, int& nTotal) const;
 
 private:
+    static constexpr int kHashA = 36;   // magic
+    static constexpr int kHashB = 227;  // magic
+    static constexpr int kNumTap = 1;   // multi-tap the table. initial test makes compression worse.
+
     int hash(uint8_t a, uint8_t b) const {
 		// It's surprisingly sensitive to the choice of multipliers here.
         // These were found by rough testing, but worth revisiting on a
 		// representative corpus.
-        return (a * 37 + b * 227) % kTableSize;       // 71.9
+        return (a * kHashA + b * kHashB) % kTableSize;
     }
 
     // Hash table entry storing a byte pair and its occurrence count
@@ -79,7 +83,7 @@ private:
     };
     
     uint8_t _prev = ' ';  // Previous byte seen (for tracking byte pairs)
-    int _count = 0;        // Number of entries currently in the table
+    int _count = 0;
     std::array<Entry, kTableSize> _table;  // The hash table
 };
 
@@ -104,7 +108,7 @@ public:
     // 
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
-    //   Call again with remaining data if nInput < inputSize.
+    //   Call again with remaining data if r.nInput < inputSize.
     Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
 
 private:
@@ -139,7 +143,7 @@ public:
 private:
     int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
 	                    // In that case, we store it here to process on the next call.
-    Table _table;       // Adaptive byte-pair lookup table (must match compressor's table)
+    Table _table;       // Adaptive byte-pair lookup table
 };
 
 }

@@ -137,12 +137,18 @@ Likewise for decompression:
 
 * RLE size of 3 is a compression ratio of 0.66, which is okay. Should the smallest run
   be longer? Should very long runs be supported - using power of two instead of linear?
+  Better yet, if this matters, there could be a 3 byte RLE. [RLE-N][n][value] for runs
+  up to 255 in length.
 * Table eviction is simple and elegant, but perhaps not optimal. How frequently should 
   it step?
-* Literals could / should be stored as runs similar to RLE. This would more efficiently 
-  encode UTF-8 text and non-English text.
+* Literals could be stored as runs similar to RLE. This would more efficiently 
+  encode UTF-8 text and non-English text. But literals aren't the focus of the 
+  compressor, either.
 * The table hashing is super fast and very simple and the compression is sensitive
   to the hash function. Is there a better hash function that is still fast?
+
+The code supports linear probing the table, but it doesn't improve compression. (At
+least without additional tuning.)
 
 ## License
 

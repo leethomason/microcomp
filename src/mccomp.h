@@ -84,6 +84,7 @@ private:
 struct Result {
     int nInput = 0;   // Number of input bytes consumed
     int nOutput = 0;  // Number of output bytes produced
+    bool eofFF = false; // If detecting 0xff as EOF, true if the EOF byte was read
 };
 
 // Streaming compressor using RLE and adaptive byte-pair encoding.
@@ -121,11 +122,14 @@ public:
     //   inputSize  - Size of input buffer in bytes
     //   output     - Output buffer for decompressed data
 	//   outputSize - Size of output buffer.
+    //   eolFF   - if the input is known to be ASCII or UTF-8, then 0xff will never
+    //                be written to the compressed strea, and can be used as EOF. 
+    //                If true, will detect 0xff as EOF, and return eofFF = true in Result
     // 
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
 	//   Repeat calls until all data is decompressed.
-    Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
+    Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize, bool eolFF = false);
 
     // Get statistics about table usage (for debugging and optimization)
     void utilization(int& nEntries, int& nTotal) const {

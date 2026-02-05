@@ -115,6 +115,21 @@ void testBinary()
     TEST(out == in);
 }
 
+void testEOF()
+{
+    std::array<uint8_t, 64> in;
+    for (int i = 0; i < 64; i++)
+        in[i] = uint8_t('0' + (i % 10));
+    
+    std::array<uint8_t, 64> compressed;
+    compressed.fill(0xff);
+    {
+        size_t pos = 0;
+        static constexpr size_t kBufSize = 16;
+        uint8_t buf[kBufSize];
+    }
+
+}
 
 bool compareFiles(const std::string& filename1, const std::string& filename2) {
     std::ifstream file1(filename1, std::ifstream::ate | std::ifstream::binary);
@@ -245,8 +260,10 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
             assert(r.nInput <= buffer0);
             assert(r.nOutput <= buffer1);
 
-            for (size_t i = 0; i < r.nOutput; i++)
+            for (size_t i = 0; i < r.nOutput; i++) {
+                TEST(workingOut[i] != 255);
                 compressed.push_back(workingOut[i]);
+            }
             pos += r.nInput;
         }
     }
@@ -317,7 +334,7 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
 	RUN_TEST(testComp0());
-    //RUN_TEST(testComp1());
+    RUN_TEST(testComp1());
 	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());

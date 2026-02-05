@@ -181,20 +181,27 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     }
     Result result{
         static_cast<int>(in - input),
-        static_cast<int>(out - output)
+        static_cast<int>(out - output),
+        false
     };
     return result;
 }
 
-Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
+Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize, bool detectEOF)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
+    bool eofFF = false;
 
     while(in < inEnd && out < outEnd) {
         uint8_t byte = *in;
+        if (detectEOF && byte == 0xff) {
+            eofFF = true;
+            break;
+        }
+
         if (_carry >= 0) {
             byte = uint8_t(_carry);
             in--;
@@ -262,7 +269,8 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     }
     return Result{
         static_cast<int>(in - input),
-        static_cast<int>(out - output)
+        static_cast<int>(out - output),
+        eofFF
     };
 }
 

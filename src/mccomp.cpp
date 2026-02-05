@@ -1,4 +1,5 @@
 #include "mccomp.h"
+
 #include <cassert>
 #include <cstring>
 #include <algorithm>
@@ -12,7 +13,7 @@ Table::~Table()
     printf("--- Table ---\n");
     for (int i = 0; i < kTableSize; i++) {
 		const Entry& e = _table[i];
-        printf("%c%c:%3d ", e.a >= 32 && e.a < 127 ? e.a : ' ', e.b >= 32 && e.b < 127 ? e.b : ' ', e.count);
+        printf("%c%c:%4d  ", e.a >= 32 && e.a < 127 ? e.a : ' ', e.b >= 32 && e.b < 127 ? e.b : ' ', e.count);
 		if (i % 10 == 9) {
             printf("\n");
         }
@@ -34,14 +35,19 @@ void Table::push(uint8_t a)
         _table[ageIndex].count--;
     }
 
-    const int idx = hash(_prev, a);
-    if (_table[idx].count == 0) {
-        _table[idx] = {_prev, a, 1};
-    }
-    else if (_table[idx].match(_prev, a)) {
-        // Prevent overflow by capping at max value
-        if (_table[idx].count < UINT16_MAX) {
-            _table[idx].count++;
+    const int start = hash(_prev, a);
+    const int end = std::min(start + kNumTap, kTableSize);
+    for (int idx = start; idx < end; idx++) {
+        if (_table[idx].count == 0) {
+            _table[idx] = { _prev, a, 1 };
+            break;
+        }
+        else if (_table[idx].match(_prev, a)) {
+            // Prevent overflow by capping at max value
+            if (_table[idx].count < UINT16_MAX) {
+                _table[idx].count++;
+            }
+            break;
         }
     }
     _prev = a;

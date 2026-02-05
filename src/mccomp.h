@@ -7,11 +7,7 @@
 // Uses RLE (Run-Length Encoding) and a dynamically built byte-pair lookup table.
 namespace mccomp {
 
-// Byte value ranges - the algorithm partitions the 256-byte space into regions:
-// [0-8]: RLE markers for encoding repeated bytes
-// [9-126]: Regular ASCII characters (passed through unencoded)
-// [127]: Literal escape marker for encoding special bytes
-// [128-255]: Table lookup indices for common byte pairs
+// Byte value ranges - the algorithm partitions the 256-byte space into regions.
 
 // RLE (Run-Length Encoding) markers: bytes 0-8 encode runs of 3-11 identical bytes
 static constexpr uint8_t kRLEStart = 0;
@@ -22,7 +18,7 @@ static constexpr uint8_t kLiteral = 127;
 
 // Table lookup range: bytes 128-255 map to common byte pairs
 static constexpr uint8_t kTableStart = 128;
-static constexpr uint8_t kTableEnd = 255;
+static constexpr uint8_t kTableEnd = 254;   // 255 is reserved for End of File on Flash memory.
 
 // RLE encoding parameters
 static constexpr int kRLEMinLength = 3;

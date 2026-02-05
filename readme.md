@@ -18,6 +18,7 @@ it was fun to make and I hope others find it useful.
 * No memory allocation
 * Fast compression and decompression
 * Incremental processing of data in chunks
+* ASCII strings never expand
 
 ## Performance
 
@@ -51,3 +52,18 @@ MCComp uses a byte-based approach without bit manipulation:
   that need to be escaped, and the compressed size will be double
   the original size.
 * Remaining values are written as is.
+
+## End of File on Flash Memory
+
+Flash memory is erased to 0xff, not 0, because flash memory
+writes only write 0 bits. If you are reading a file from flash,
+how do you know if you reached the end?
+
+For text, the value 255 can be used as EOF
+* it isn't ASCII
+* it isn't UTF-8 either
+
+(Binary will require looking for a long run of 0xff or maintaining a length.)
+
+That's handy. MCComp maintains this. If the input is text (ASCII
+or UTF-8) a 255 byte value will never be written to the compressed stream.

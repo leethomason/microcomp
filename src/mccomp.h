@@ -120,7 +120,7 @@ private:
 class Decompressor {
 public:
     //   eolFF   - if the input is known to be ASCII or UTF-8, then 0xff will never
-    //                be written to the compressed strea, and can be used as EOF. 
+    //                be written to the compressed stream, and can be used as EOF. 
     //                If true, will detect 0xff as EOF, and return eofFF = true in Result
     Decompressor(bool eofFF = false) : _detectEOF(eofFF) {}
 

@@ -60,7 +60,7 @@ MicroComp uses a byte-based approach without bit manipulation:
 
 Flash memory is erased to 0xff, not 0, because flash memory
 writes only write 0 bits. MicroComp is focused on flash memory compression,
-so there's a little extra accomidation for this case.
+so there's a little extra accommodation for this case.
 
 For text, the value 255 can be used as EOF
 * 0xff isn't ASCII

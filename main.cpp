@@ -136,7 +136,7 @@ void testEOF()
         mccomp::Compressor comp;
 
         while (pos < in.size()) {
-            mccomp::Result r = comp.compress(in.data() + pos, int(in.size() - pos), buf, kBufSize);
+            mccomp::Result r = comp.compress(in.data() + pos, in.size() - pos, buf, kBufSize);
             for (size_t i = 0; i < r.nOutput; i++) {
                 TEST(buf[i] != 0xff);
                 compressed[cPos++] = buf[i];

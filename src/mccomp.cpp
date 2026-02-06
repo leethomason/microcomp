@@ -202,15 +202,16 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
 
     while(in < inEnd && out < outEnd) {
         uint8_t byte = *in;
-        if (_detectEOF && (byte == 0xff)) {
-            eofFF = true;
-            break;
-        }
 
         if (_carry >= 0) {
             byte = uint8_t(_carry);
             in--;
             _carry = -1;
+        }
+
+        if (_detectEOF && (byte == 0xff)) {
+            eofFF = true;
+            break;
         }
 
         if (byte >= kRLEStart && byte <= kRLEEnd) {

@@ -143,7 +143,7 @@ public:
     }
 
 private:
-    bool _detectEOF;
+    bool _detectEOF = false;
     int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
 	                    // In that case, we store it here to process on the next call.
     Table _table;       // Adaptive byte-pair lookup table

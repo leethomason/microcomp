@@ -56,22 +56,19 @@ MicroComp uses a byte-based approach without bit manipulation:
   the original size.
 * Remaining values are written as is.
 
-<<<<<<< HEAD
 ## End of File on Flash Memory
 
 Flash memory is erased to 0xff, not 0, because flash memory
-writes only write 0 bits. If you are reading a file from flash,
-how do you know if you reached the end?
+writes only write 0 bits. MicroComp is focused on flash memory compression,
+so there's a little extra accomidation for this case.
 
 For text, the value 255 can be used as EOF
-* it isn't ASCII
-* it isn't UTF-8 either
+* 0xff isn't ASCII
+* (luckily) 0xff isn't UTF-8 either
 
-(Binary will require looking for a long run of 0xff or maintaining a length.)
-
-If the input is text (ASCII or UTF-8) a 255 byte value will never be 
+Therefor if the input is text (ASCII or UTF-8) a 255 byte value will never be 
 written to the compressed stream, and you can use 255/0xff as EOF on the
-compressed data.
+compressed data. `testEOF()` shows this in action.
 
 ## Usage
 

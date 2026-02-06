@@ -106,7 +106,7 @@ public:
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
     //   Call again with remaining data if r.nInput < inputSize.
-    Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
+    Result compress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize);
 
 private:
     // Encode a run of repeated bytes using RLE markers
@@ -119,6 +119,11 @@ private:
 // The same Decompressor instance should be used for an entire stream to maintain table state.
 class Decompressor {
 public:
+    //   eolFF   - if the input is known to be ASCII or UTF-8, then 0xff will never
+    //                be written to the compressed strea, and can be used as EOF. 
+    //                If true, will detect 0xff as EOF, and return eofFF = true in Result
+    Decompressor(bool eofFF = false) : _detectEOF(eofFF) {}
+
 	// Decompress a chunk of data. Can be called multiple times for streaming decompression.
     // 
     // Parameters:
@@ -126,14 +131,11 @@ public:
     //   inputSize  - Size of input buffer in bytes
     //   output     - Output buffer for decompressed data
 	//   outputSize - Size of output buffer.
-    //   eolFF   - if the input is known to be ASCII or UTF-8, then 0xff will never
-    //                be written to the compressed strea, and can be used as EOF. 
-    //                If true, will detect 0xff as EOF, and return eofFF = true in Result
     // 
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
 	//   Repeat calls until all data is decompressed.
-    Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize, bool eolFF = false);
+    Result decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize);
 
     // Get statistics about table usage (for debugging and optimization)
     void utilization(int& nEntries, int& nTotal) const {
@@ -141,6 +143,7 @@ public:
     }
 
 private:
+    bool _detectEOF;
     int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
 	                    // In that case, we store it here to process on the next call.
     Table _table;       // Adaptive byte-pair lookup table

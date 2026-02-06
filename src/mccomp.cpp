@@ -43,7 +43,6 @@ void Table::push(uint8_t a)
             break;
         }
         else if (_table[idx].match(_prev, a)) {
-            // Prevent overflow by capping at max value
             if (_table[idx].count < UINT16_MAX) {
                 _table[idx].count++;
             }
@@ -129,7 +128,7 @@ int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t*
 //   *in = D. next= ? done
 
 
-Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
+Result Compressor::compress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
@@ -193,7 +192,7 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     return result;
 }
 
-Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize, bool detectEOF)
+Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
@@ -203,7 +202,7 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
 
     while(in < inEnd && out < outEnd) {
         uint8_t byte = *in;
-        if (detectEOF && byte == 0xff) {
+        if (_detectEOF && (byte == 0xff)) {
             eofFF = true;
             break;
         }

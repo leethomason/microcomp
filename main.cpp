@@ -121,14 +121,49 @@ void testEOF()
     for (int i = 0; i < 64; i++)
         in[i] = uint8_t('0' + (i % 10));
     
-    std::array<uint8_t, 64> compressed;
-    compressed.fill(0xff);
+    // Compressed ASCII will always be less than ore equal to the size
+    // of uncompressed. Although highly unlikely this won't compress,
+    // make the comprossed buffer one longer.
+    std::array<uint8_t, 65> compressed;
+    compressed.fill(0xff);  // simulate flash memory, which inits to 0xff
+    size_t cPos = 0;
+
+    // Compression, using the streaming approach.
     {
         size_t pos = 0;
         static constexpr size_t kBufSize = 16;
         uint8_t buf[kBufSize];
+        mccomp::Compressor comp;
+
+        while (pos < in.size()) {
+            mccomp::Result r = comp.compress(in.data() + pos, int(in.size() - pos), buf, kBufSize);
+            for (size_t i = 0; i < r.nOutput; i++) {
+                TEST(buf[i] != 0xff);
+                compressed[cPos++] = buf[i];
+            }
+            pos += r.nInput;
+        }
     }
 
+    std::array<uint8_t, 64> out;
+    // Decompression without using size, relying on 0xff EOF
+    {
+        static constexpr size_t kBufSize = 16;
+        uint8_t buf[kBufSize];
+        mccomp::Decompressor decomp(true);
+        size_t pos = 0;
+        size_t outPos = 0;
+
+        while (true) {
+            mccomp::Result r = decomp.decompress(compressed.data() + pos, compressed.size() - pos, buf, kBufSize);
+            for (size_t i = 0; i < r.nOutput; i++)
+                out[outPos++] = buf[i];
+            if (r.eofFF)
+                break;
+            pos += r.nInput;
+        }
+    }
+    TEST(out == in);
 }
 
 bool compareFiles(const std::string& filename1, const std::string& filename2) {
@@ -338,6 +373,7 @@ int main(int argc, char* argv[]) {
 	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());
+    RUN_TEST(testEOF());
 
     // Check if filename was provided as argument
     if (argc != 2) {

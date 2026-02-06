@@ -7,11 +7,7 @@
 // Uses RLE (Run-Length Encoding) and a dynamically built byte-pair lookup table.
 namespace mccomp {
 
-// Byte value ranges - the algorithm partitions the 256-byte space into regions:
-// [0-8]: RLE markers for encoding repeated bytes
-// [9-126]: Regular ASCII characters (passed through unencoded)
-// [127]: Literal escape marker for encoding special bytes
-// [128-255]: Table lookup indices for common byte pairs
+// Byte value ranges - the algorithm partitions the 256-byte space into regions.
 
 // RLE (Run-Length Encoding) markers: bytes 0-8 encode runs of 3-11 identical bytes
 static constexpr uint8_t kRLEStart = 0;
@@ -22,7 +18,7 @@ static constexpr uint8_t kLiteral = 127;
 
 // Table lookup range: bytes 128-255 map to common byte pairs
 static constexpr uint8_t kTableStart = 128;
-static constexpr uint8_t kTableEnd = 255;
+static constexpr uint8_t kTableEnd = 254;   // 255 is reserved for End of File on Flash memory.
 
 // RLE encoding parameters
 static constexpr int kRLEMinLength = 3;
@@ -92,6 +88,7 @@ private:
 struct Result {
     int nInput = 0;   // Number of input bytes consumed
     int nOutput = 0;  // Number of output bytes produced
+    bool eofFF = false; // If detecting 0xff as EOF, true if the EOF byte was read
 };
 
 // Streaming compressor using RLE and adaptive byte-pair encoding.
@@ -109,7 +106,7 @@ public:
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
     //   Call again with remaining data if r.nInput < inputSize.
-    Result compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
+    Result compress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize);
 
 private:
     // Encode a run of repeated bytes using RLE markers
@@ -122,6 +119,14 @@ private:
 // The same Decompressor instance should be used for an entire stream to maintain table state.
 class Decompressor {
 public:
+    // Construct a decompressor.
+    //
+    // Parameters:
+    //   eofFF - If the input is known to be ASCII or UTF-8, then 0xff will never
+    //           be written to the compressed stream and can be used as EOF.
+    //           If true, will detect 0xff as EOF and set the eofFF flag in Result.
+    Decompressor(bool eofFF = false) : _detectEOF(eofFF) {}
+
 	// Decompress a chunk of data. Can be called multiple times for streaming decompression.
     // 
     // Parameters:
@@ -133,7 +138,7 @@ public:
     // Returns:
     //   Result with nInput bytes consumed and nOutput bytes produced.
 	//   Repeat calls until all data is decompressed.
-    Result decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize);
+    Result decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize);
 
     // Get statistics about table usage (for debugging and optimization)
     void utilization(int& nEntries, int& nTotal) const {
@@ -141,6 +146,7 @@ public:
     }
 
 private:
+    bool _detectEOF = false;
     int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
 	                    // In that case, we store it here to process on the next call.
     Table _table;       // Adaptive byte-pair lookup table

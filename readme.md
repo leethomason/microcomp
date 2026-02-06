@@ -17,10 +17,11 @@ it was fun to make and I hope others find it useful.
 * Simple and small codebase
 * No memory allocation
 * Fast compression and decompression
+* Optimized for low-ASCII text data, but works on any data
 * Incremental processing of data in chunks
+* ASCII strings never expand
 * Compressor and decompressor use less than 600 bytes each
 * No table or dictionary is stored in the compressed data
-* Optimized for low-ASCII text data, but works on any data
 
 ## Performance
 
@@ -54,6 +55,20 @@ MicroComp uses a byte-based approach without bit manipulation:
   that need to be escaped, and the compressed size will be double
   the original size.
 * Remaining values are written as is.
+
+## End of File on Flash Memory
+
+Flash memory is erased to 0xff, not 0, because flash memory
+writes only write 0 bits. MicroComp is focused on flash memory compression,
+so there's a little extra accommodation for this case.
+
+For text, the value 255 can be used as EOF
+* 0xff isn't ASCII
+* (luckily) 0xff isn't UTF-8 either
+
+Therefore if the input is text (ASCII or UTF-8) a 255 byte value will never be 
+written to the compressed stream, and you can use 255/0xff as EOF on the
+compressed data. `testEOF()` shows this in action.
 
 ## Usage
 

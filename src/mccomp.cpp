@@ -43,7 +43,6 @@ void Table::push(uint8_t a)
             break;
         }
         else if (_table[idx].match(_prev, a)) {
-            // Prevent overflow by capping at max value
             if (_table[idx].count < UINT16_MAX) {
                 _table[idx].count++;
             }
@@ -129,7 +128,7 @@ int Compressor::writeRLE(const uint8_t* input, const uint8_t* inputEnd, uint8_t*
 //   *in = D. next= ? done
 
 
-Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
+Result Compressor::compress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
@@ -187,24 +186,32 @@ Result Compressor::compress(const uint8_t* input, int inputSize, uint8_t* output
     }
     Result result{
         static_cast<int>(in - input),
-        static_cast<int>(out - output)
+        static_cast<int>(out - output),
+        false
     };
     return result;
 }
 
-Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* output, int outputSize)
+Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
 {
     const uint8_t* in = input;
     const uint8_t* inEnd = input + inputSize;
     uint8_t* out = output;
     const uint8_t* outEnd = output + outputSize;
+    bool eofFF = false;
 
     while(in < inEnd && out < outEnd) {
         uint8_t byte = *in;
+
         if (_carry >= 0) {
             byte = uint8_t(_carry);
             in--;
             _carry = -1;
+        }
+
+        if (_detectEOF && (byte == 0xff)) {
+            eofFF = true;
+            break;
         }
 
         if (byte >= kRLEStart && byte <= kRLEEnd) {
@@ -268,7 +275,8 @@ Result Decompressor::decompress(const uint8_t* input, int inputSize, uint8_t* ou
     }
     return Result{
         static_cast<int>(in - input),
-        static_cast<int>(out - output)
+        static_cast<int>(out - output),
+        eofFF
     };
 }
 

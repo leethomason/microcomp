@@ -115,6 +115,56 @@ void testBinary()
     TEST(out == in);
 }
 
+void testEOF()
+{
+    std::array<uint8_t, 64> in;
+    for (int i = 0; i < 64; i++)
+        in[i] = uint8_t('0' + (i % 10));
+    
+    // Compressed ASCII will always be less than or equal to the size
+    // of uncompressed. Although highly unlikely this won't compress,
+    // make the compressed buffer one longer.
+    std::array<uint8_t, 65> compressed;
+    compressed.fill(0xff);  // simulate flash memory, which inits to 0xff
+    size_t cPos = 0;
+
+    // Compression, using the streaming approach.
+    {
+        size_t pos = 0;
+        static constexpr size_t kBufSize = 16;
+        uint8_t buf[kBufSize];
+        mccomp::Compressor comp;
+
+        while (pos < in.size()) {
+            mccomp::Result r = comp.compress(in.data() + pos, in.size() - pos, buf, kBufSize);
+            for (size_t i = 0; i < r.nOutput; i++) {
+                TEST(buf[i] != 0xff);
+                compressed[cPos++] = buf[i];
+            }
+            pos += r.nInput;
+        }
+    }
+
+    std::array<uint8_t, 64> out;
+    // Decompression without using size, relying on 0xff EOF
+    {
+        static constexpr size_t kBufSize = 16;
+        uint8_t buf[kBufSize];
+        mccomp::Decompressor decomp(true);
+        size_t pos = 0;
+        size_t outPos = 0;
+
+        while (true) {
+            mccomp::Result r = decomp.decompress(compressed.data() + pos, compressed.size() - pos, buf, kBufSize);
+            for (size_t i = 0; i < r.nOutput; i++)
+                out[outPos++] = buf[i];
+            if (r.eofFF)
+                break;
+            pos += r.nInput;
+        }
+    }
+    TEST(out == in);
+}
 
 bool compareFiles(const std::string& filename1, const std::string& filename2) {
     std::ifstream file1(filename1, std::ifstream::ate | std::ifstream::binary);
@@ -245,8 +295,10 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
             assert(r.nInput <= buffer0);
             assert(r.nOutput <= buffer1);
 
-            for (size_t i = 0; i < r.nOutput; i++)
+            for (size_t i = 0; i < r.nOutput; i++) {
+                TEST(workingOut[i] != 255);
                 compressed.push_back(workingOut[i]);
+            }
             pos += r.nInput;
         }
     }
@@ -321,6 +373,7 @@ int main(int argc, char* argv[]) {
 	RUN_TEST(testSmallBinary());
     RUN_TEST(testBinary());
     RUN_TEST(canonTest());
+    RUN_TEST(testEOF());
 
     // Check if filename was provided as argument
     if (argc != 2) {

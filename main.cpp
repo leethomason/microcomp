@@ -123,7 +123,7 @@ void testEOF()
     
     // Compressed ASCII will always be less than or equal to the size
     // of uncompressed. Although highly unlikely this won't compress,
-    // make the comprossed buffer one longer.
+    // make the compressed buffer one longer.
     std::array<uint8_t, 65> compressed;
     compressed.fill(0xff);  // simulate flash memory, which inits to 0xff
     size_t cPos = 0;

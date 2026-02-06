@@ -60,13 +60,13 @@ MicroComp uses a byte-based approach without bit manipulation:
 
 Flash memory is erased to 0xff, not 0, because flash memory
 writes only write 0 bits. MicroComp is focused on flash memory compression,
-so there's a little extra accomidation for this case.
+so there's a little extra accommodation for this case.
 
 For text, the value 255 can be used as EOF
 * 0xff isn't ASCII
 * (luckily) 0xff isn't UTF-8 either
 
-Therefor if the input is text (ASCII or UTF-8) a 255 byte value will never be 
+Therefore if the input is text (ASCII or UTF-8) a 255 byte value will never be 
 written to the compressed stream, and you can use 255/0xff as EOF on the
 compressed data. `testEOF()` shows this in action.
 

@@ -121,7 +121,7 @@ void testEOF()
     for (int i = 0; i < 64; i++)
         in[i] = uint8_t('0' + (i % 10));
     
-    // Compressed ASCII will always be less than ore equal to the size
+    // Compressed ASCII will always be less than or equal to the size
     // of uncompressed. Although highly unlikely this won't compress,
     // make the comprossed buffer one longer.
     std::array<uint8_t, 65> compressed;

@@ -303,9 +303,6 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
         }
     }
     std::string uncompressed;
-    int nEntries = 0;
-    int nTotal = 0;
-
     {
         uint8_t workingIn[kBufferAlloc + 1];
         uint8_t workingOut[kBufferAlloc + 1];
@@ -336,6 +333,10 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
         }
 
         if (log) {
+            int nEntries = 0;
+            int nTotal = 0;
+			decompressor.utilization(nEntries, nTotal);
+
             std::cout << "Input: " << fileContent.size() << std::endl;
             std::cout << "Uncompressed: " << uncompressed.size() << " Compressed: " << compressed.size() << " bytes" << std::endl;
             std::cout << "Ratio%: " << 100.0 * compressed.size() / uncompressed.size() << std::endl;

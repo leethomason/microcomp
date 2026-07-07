@@ -22,7 +22,7 @@ static constexpr uint8_t kTableEnd = 254;   // 255 is reserved for End of File o
 
 // RLE encoding parameters
 static constexpr int kRLEMinLength = 3;
-static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength - 1;
+static constexpr int kRLEMaxLength = kRLEEnd - kRLEStart + kRLEMinLength;
 static constexpr int kTableSize = kTableEnd - kTableStart + 1;
 
 // Check if a byte falls in the regular ASCII range.

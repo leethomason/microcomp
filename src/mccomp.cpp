@@ -56,7 +56,7 @@ int Table::fetch(uint8_t a, uint8_t b) const
 {
     const int idx = hash(a, b);
     const Entry& entry = _table[idx];
-    if (entry.match(a, b)) {
+    if (entry.count > 0 && entry.match(a, b)) {
         assert(isAscii(entry.a));
         assert(isAscii(entry.b));
         return idx;
@@ -201,13 +201,11 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
     bool eofFF = false;
 
     while(in < inEnd && out < outEnd) {
-        uint8_t byte = *in;
-
-        if (_carry >= 0) {
-            byte = uint8_t(_carry);
-            in--;
-            _carry = -1;
-        }
+        // If the previous call left a marker byte pending (it had already been
+        // consumed from that call's input, but its payload hadn't arrived yet),
+        // resume from it. Only the payload comes from this call's buffer.
+        const bool fromCarry = (_carry >= 0);
+        const uint8_t byte = fromCarry ? uint8_t(_carry) : *in;
 
         if (_detectEOF && (byte == 0xff)) {
             eofFF = true;
@@ -217,28 +215,30 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
         if (byte >= kRLEStart && byte <= kRLEEnd) {
             int nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
 
-            static constexpr int kInReq = 2;
+            const int kInReq = fromCarry ? 1 : 2;   // value only, or marker+value
             int kOutReq = 1 + nRLE;
-			if (in + kInReq > inEnd || out + kOutReq > outEnd) {
-                if (in + 1 == inEnd) {
-					_carry = byte;
+            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
+                if (!fromCarry && in + 1 == inEnd) {
+                    _carry = byte;
                     ++in;
-                    break;
                 }
-                break; // Not enough input or output space
+                // Otherwise leave _carry as-is (still pending, waiting on
+                // output space) and don't consume anything this call.
+                break;
             }
 
-            ++in; // consume marker
+            if (!fromCarry) ++in; // consume marker
+            _carry = -1;
             // RLEs are not pushed to the Table
-			uint8_t value = *in++;
+            uint8_t value = *in++;
             for (int i = 0; i < nRLE; i++) {
                 *out++ = value;
-			}
+            }
             continue;
         }
         else if (byte >= kTableStart && byte <= kTableEnd) {
             static constexpr int kInReq = 1;
-			static constexpr int kOutReq = 2;
+            static constexpr int kOutReq = 2;
             if (in + kInReq > inEnd || out + kOutReq > outEnd) {
                 break; // Not enough input or output space
             }
@@ -254,23 +254,24 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
         }
         else if (byte == kLiteral) {
             // Literal escape sequence: marker + value (2 bytes total)
-            static constexpr int kInReq = 2;
+            const int kInReq = fromCarry ? 1 : 2;
             static constexpr int kOutReq = 1;
             if (in + kInReq > inEnd || out + kOutReq > outEnd) {
-				if (in + 1 == inEnd) {
-					_carry = kLiteral;
-					++in; // consume marker
+                if (!fromCarry && in + 1 == inEnd) {
+                    _carry = kLiteral;
+                    ++in; // consume marker
                 }
-                break; // Not enough input or output space
+                break;
             }
-            ++in;   // consume marker
-			*out++ = *in++;
+            if (!fromCarry) ++in; // consume marker
+            _carry = -1;
+            *out++ = *in++;
             continue;
         }
         else {
             _table.push(byte);
             *out++ = byte;
-			in++;
+            in++;
         }
     }
     return Result{

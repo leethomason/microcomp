@@ -39,6 +39,71 @@ void testTable()
     }
 }
 
+// Regression test: a fresh Table's entries default-construct to {' ', ' ', 0}.
+// fetch() must not report a match against a never-populated slot just
+// because its byte values happen to equal the pair being queried.
+void testFetchEmptyTable()
+{
+    mccomp::Table t;
+    TEST(t.fetch(' ', ' ') == -1);
+}
+
+// Regression test: kRLEEnd must map to the longest run the format supports
+// (kRLEMinLength + (kRLEEnd - kRLEStart)), and the compressor must actually
+// reach that marker value instead of splitting the run one byte short.
+void testRLEMaxRun()
+{
+    std::array<uint8_t, mccomp::kRLEMaxLength> in;
+    in.fill('x');
+
+    uint8_t compressed[8];
+    mccomp::Compressor c;
+    mccomp::Result r = c.compress(in.data(), int(in.size()), compressed, 8);
+    TEST(r.nInput == int(in.size()));
+    TEST(r.nOutput == 2);
+    TEST(compressed[0] == mccomp::kRLEEnd);
+    TEST(compressed[1] == 'x');
+
+    uint8_t out[mccomp::kRLEMaxLength + 8]; // headroom: decompress()'s internal space check is conservative
+    mccomp::Decompressor d;
+    mccomp::Result r2 = d.decompress(compressed, r.nOutput, out, sizeof(out));
+    TEST(r2.nInput == r.nOutput);
+    TEST(r2.nOutput == int(in.size()));
+    for (int i = 0; i < int(in.size()); i++) { TEST(out[i] == 'x'); }
+}
+
+// Regression test: if a decompress() call ends on a lone RLE marker byte,
+// the marker is carried to the next call. If *that* call can't complete
+// because the output buffer is too small (not because input is short), the
+// carry must survive rather than being silently dropped (which used to also
+// return a bogus negative nInput).
+void testDecompressCarryBlockedByOutput()
+{
+    // marker for run-length 10, followed by the repeated value.
+    uint8_t stream[2] = { uint8_t(mccomp::kRLEStart + 7), 'A' };
+
+    mccomp::Decompressor d;
+    uint8_t out[20];
+
+    // Call 1: only the marker is available -> carry gets set.
+    mccomp::Result r1 = d.decompress(stream, 1, out, 20);
+    TEST(r1.nInput == 1);
+    TEST(r1.nOutput == 0);
+
+    // Call 2: value byte is available, but the output buffer can't hold the
+    // 10-byte run. Must make no progress and must not lose the carry.
+    uint8_t tinyOut[1];
+    mccomp::Result r2 = d.decompress(stream + 1, 1, tinyOut, 1);
+    TEST(r2.nInput == 0);
+    TEST(r2.nOutput == 0);
+
+    // Call 3: retry with enough room; the carried run must still decode.
+    mccomp::Result r3 = d.decompress(stream + 1, 1, out, 20);
+    TEST(r3.nInput == 1);
+    TEST(r3.nOutput == 10);
+    for (int i = 0; i < 10; i++) { TEST(out[i] == 'A'); }
+}
+
 void testComp0()
 {
     const char* in = "ABAB";
@@ -369,6 +434,9 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
 
 int main(int argc, char* argv[]) {
     RUN_TEST(testTable());
+    RUN_TEST(testFetchEmptyTable());
+    RUN_TEST(testRLEMaxRun());
+    RUN_TEST(testDecompressCarryBlockedByOutput());
 	RUN_TEST(testComp0());
     RUN_TEST(testComp1());
 	RUN_TEST(testSmallBinary());

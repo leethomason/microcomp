@@ -27,39 +27,51 @@ void Table::push(uint8_t a)
 {
     assert(isAscii(a));
 
-    // Age down the count with every push, rolling through the table
-    // Anything with count == 0 will get re-used
-    _count++;
-    const int ageIndex = _count % kTableSize;
-    if (_table[ageIndex].count > 0) {
-        _table[ageIndex].count--;
-    }
-
     const int start = hash(_prev, a);
     const int end = std::min(start + kNumTap, kTableSize);
+
+    int weakest = -1;
     for (int idx = start; idx < end; idx++) {
         if (_table[idx].count == 0) {
             _table[idx] = { _prev, a, 1 };
-            break;
+            _prev = a;
+            return;
         }
-        else if (_table[idx].match(_prev, a)) {
+        if (_table[idx].match(_prev, a)) {
             if (_table[idx].count < UINT16_MAX) {
                 _table[idx].count++;
             }
-            break;
+            _prev = a;
+            return;
         }
+        if (weakest < 0 || _table[idx].count < _table[weakest].count) {
+            weakest = idx;
+        }
+    }
+
+    // Every slot in this bucket is occupied by a different pair: age down
+    // the least-valuable occupant (contention-based eviction) instead of
+    // decaying an unrelated slot elsewhere in the table. Once it runs out
+    // of credit, hand its slot straight to the pair actively contending
+    // for it.
+    Entry& loser = _table[weakest];
+    if (--loser.count == 0) {
+        loser = { _prev, a, 1 };
     }
     _prev = a;
 }
 
 int Table::fetch(uint8_t a, uint8_t b) const
 {
-    const int idx = hash(a, b);
-    const Entry& entry = _table[idx];
-    if (entry.count > 0 && entry.match(a, b)) {
-        assert(isAscii(entry.a));
-        assert(isAscii(entry.b));
-        return idx;
+    const int start = hash(a, b);
+    const int end = std::min(start + kNumTap, kTableSize);
+    for (int idx = start; idx < end; idx++) {
+        const Entry& entry = _table[idx];
+        if (entry.count > 0 && entry.match(a, b)) {
+            assert(isAscii(entry.a));
+            assert(isAscii(entry.b));
+            return idx;
+        }
     }
     return -1;
 }

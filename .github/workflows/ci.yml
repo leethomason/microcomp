@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        shell: bash
+        run: |
+          if [ -f build/Release/mccomp_test.exe ]; then
+            EXE=build/Release/mccomp_test.exe
+          elif [ -f build/mccomp_test.exe ]; then
+            EXE=build/mccomp_test.exe
+          else
+            EXE=build/mccomp_test
+          fi
+          "$EXE" test.log

@@ -9,17 +9,6 @@ namespace mccomp {
 
 Table::~Table()
 {
-#if false
-    printf("--- Table ---\n");
-    for (int i = 0; i < kTableSize; i++) {
-		const Entry& e = _table[i];
-        printf("%c%c:%4d  ", e.a >= 32 && e.a < 127 ? e.a : ' ', e.b >= 32 && e.b < 127 ? e.b : ' ', e.count);
-		if (i % 10 == 9) {
-            printf("\n");
-        }
-    }
-	printf("\n");
-#endif
 }
 
 

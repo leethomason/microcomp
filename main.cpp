@@ -1,6 +1,7 @@
 #include "src/mccomp.h"
 
 #include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -234,7 +235,7 @@ void testSmallBinary()
     mccomp::Compressor c;
     mccomp::Result r = c.compress(in.data(), int(in.size()), compressed.data(), int(compressed.size()));
     TEST(r.nInput == in.size());
-    TEST(r.nOutput <= compressed.size());
+    TEST(r.nOutput <= int(compressed.size()));
     TEST(compressed[0] == mccomp::kLiteral);
     TEST(compressed[1] == 0);
     TEST(compressed[2] == mccomp::kLiteral);
@@ -266,7 +267,7 @@ void testBinary()
     mccomp::Compressor c;
     mccomp::Result r = c.compress(in.data(), int(in.size()), compressed.data(), int(compressed.size()));
     TEST(r.nInput == in.size());
-    TEST(r.nOutput <= compressed.size());
+    TEST(r.nOutput <= int(compressed.size()));
     int compressedSize = r.nOutput;
 
     mccomp::Decompressor d;
@@ -299,7 +300,7 @@ void testEOF()
 
         while (pos < in.size()) {
             mccomp::Result r = comp.compress(in.data() + pos, in.size() - pos, buf, kBufSize);
-            for (size_t i = 0; i < r.nOutput; i++) {
+            for (int i = 0; i < r.nOutput; i++) {
                 TEST(buf[i] != 0xff);
                 compressed[cPos++] = buf[i];
             }
@@ -318,7 +319,7 @@ void testEOF()
 
         while (true) {
             mccomp::Result r = decomp.decompress(compressed.data() + pos, compressed.size() - pos, buf, kBufSize);
-            for (size_t i = 0; i < r.nOutput; i++)
+            for (int i = 0; i < r.nOutput; i++)
                 out[outPos++] = buf[i];
             if (r.eofFF)
                 break;
@@ -457,7 +458,7 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
             assert(r.nInput <= buffer0);
             assert(r.nOutput <= buffer1);
 
-            for (size_t i = 0; i < r.nOutput; i++) {
+            for (int i = 0; i < r.nOutput; i++) {
                 TEST(workingOut[i] != 255);
                 compressed.push_back(workingOut[i]);
             }
@@ -489,7 +490,7 @@ int cycle(const std::string& fileContent, bool log, int buffer0 = 40, int buffer
             assert(r.nInput <= buffer0);
             assert(r.nOutput <= buffer1);
 
-            for (size_t i = 0; i < r.nOutput; i++)
+            for (int i = 0; i < r.nOutput; i++)
                 uncompressed.push_back(workingOut[i]);
             pos += r.nInput;
         }

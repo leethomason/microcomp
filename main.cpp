@@ -104,6 +104,103 @@ void testDecompressCarryBlockedByOutput()
     for (int i = 0; i < 10; i++) { TEST(out[i] == 'A'); }
 }
 
+// Regression test: the "0xff is never written to the compressed stream"
+// guarantee that eofFF decompression relies on holds only for ASCII/UTF-8
+// input. Binary input containing 0xff DOES emit 0xff into the compressed
+// stream -- but always as a *payload* (an RLE value or a literal value), never
+// at a token boundary (tokens are 0-8, 9-126, 127, or 128-254). A decompressor
+// in eofFF mode must consume those payload 0xff bytes inline and must not
+// mistake them for the EOF sentinel, which only appears at a token boundary
+// (e.g. the erased flash that trails the data).
+void testEOFFFPayload()
+{
+    // 0xff run (-> RLE token + 0xff payload), an ASCII byte, then a 0xff pair
+    // too short to RLE (-> two literal escapes, each with a 0xff payload).
+    std::array<uint8_t, 6> in = { 0xff, 0xff, 0xff, 'A', 0xff, 0xff };
+
+    uint8_t compressed[16];
+    mccomp::Compressor c;
+    mccomp::Result rc = c.compress(in.data(), int(in.size()), compressed, sizeof(compressed));
+    TEST(rc.nInput == int(in.size()));
+
+    // Contrast with testEOF()/cycle(), which assert the stream is 0xff-free:
+    // this one *does* contain 0xff bytes, all in payload position.
+    bool sawFF = false;
+    for (int i = 0; i < rc.nOutput; i++)
+        if (compressed[i] == 0xff) sawFF = true;
+    TEST(sawFF);
+
+    // Append the EOF sentinel, as erased flash would sit after the data.
+    TEST(rc.nOutput < int(sizeof(compressed)));
+    compressed[rc.nOutput] = 0xff;
+    const int streamLen = rc.nOutput + 1;
+
+    // Output buffer must be larger than the data so the decode loop keeps
+    // running long enough to reach the sentinel token (an exact-fit buffer
+    // would exit on `out == outEnd` before ever testing the sentinel).
+    uint8_t out[16] = { 0 };
+    mccomp::Decompressor d(true);   // eofFF = true
+    mccomp::Result rd = d.decompress(compressed, streamLen, out, sizeof(out));
+
+    // The payload 0xff bytes decode correctly; EOF is detected only at the
+    // trailing sentinel, which is not consumed as input.
+    TEST(rd.eofFF);
+    TEST(rd.nInput == rc.nOutput);
+    TEST(rd.nOutput == int(in.size()));
+    for (int i = 0; i < int(in.size()); i++) { TEST(out[i] == in[i]); }
+}
+
+// Regression test: a run long enough to RLE can straddle a chunk boundary so
+// that fewer than kRLEMinLength identical bytes remain in the current chunk.
+// writeRLE then declines (it needs kRLEMinLength bytes in hand), and the tail
+// bytes are emitted as ordinary literal/direct bytes instead of an RLE token.
+// That's fine for correctness -- tokens are self-describing -- but the seam is
+// otherwise unexercised. Drive compression at every chunk size so the boundary
+// lands at every offset within the run, and verify the round trip each time.
+void testRLEChunkBoundary()
+{
+    std::string in = "log: ";
+    in.append(10, 'x');          // a run RLE would cover in one shot
+    in += " end";
+
+    for (int chunk = 1; chunk <= int(in.size()); chunk++) {
+        std::vector<uint8_t> compressed;
+        {
+            mccomp::Compressor comp;
+            size_t pos = 0;
+            while (pos < in.size()) {
+                uint8_t buf[64];
+                mccomp::Result r = comp.compress(
+                    (const uint8_t*)in.data() + pos,
+                    int(std::min(size_t(chunk), in.size() - pos)),
+                    buf, sizeof(buf));
+                TEST(r.nInput > 0);   // must always make progress
+                for (int i = 0; i < r.nOutput; i++)
+                    compressed.push_back(buf[i]);
+                pos += r.nInput;
+            }
+        }
+
+        std::string got;
+        {
+            mccomp::Decompressor dec;
+            size_t pos = 0;
+            while (pos < compressed.size()) {
+                uint8_t buf[64];
+                mccomp::Result r = dec.decompress(
+                    compressed.data() + pos,
+                    int(compressed.size() - pos),
+                    buf, sizeof(buf));
+                TEST(r.nInput > 0 || r.nOutput > 0);   // must always make progress
+                for (int i = 0; i < r.nOutput; i++)
+                    got.push_back(char(buf[i]));
+                pos += r.nInput;
+            }
+        }
+        TEST(got == in);
+    }
+}
+
 void testComp0()
 {
     const char* in = "ABAB";
@@ -437,6 +534,8 @@ int main(int argc, char* argv[]) {
     RUN_TEST(testFetchEmptyTable());
     RUN_TEST(testRLEMaxRun());
     RUN_TEST(testDecompressCarryBlockedByOutput());
+    RUN_TEST(testEOFFFPayload());
+    RUN_TEST(testRLEChunkBoundary());
 	RUN_TEST(testComp0());
     RUN_TEST(testComp1());
 	RUN_TEST(testSmallBinary());

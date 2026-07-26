@@ -204,6 +204,33 @@ Result Compressor::compress(const uint8_t* input, size_t inputSize, uint8_t* out
     return result;
 }
 
+Decompressor::Payload Decompressor::fetchPayload(const uint8_t* in, const uint8_t* inEnd,
+                               uint8_t* out, const uint8_t* outEnd,
+                               uint8_t marker, bool fromCarry, int outReq)
+{
+    int advance = 0;
+    const int inReq = fromCarry ? 1 : 2;   // payload only, or marker + payload
+    if (in + inReq > inEnd || out + outReq > outEnd) {
+        if (!fromCarry && in + 1 == inEnd) {
+            // The marker is the last byte in hand; consume it into the
+            // carry so the payload can arrive next call.
+            _carry = marker;
+            advance = 1;
+        }
+        // Otherwise leave state untouched (still pending on output space,
+        // or the marker will simply be reprocessed next call) and consume
+        // nothing.
+		return { -1, advance };
+    }
+    if (!fromCarry) {
+        ++in;   // consume marker
+        advance = 1;
+    }
+    _carry = -1;
+    advance++;
+    return { *in, advance };           // consume and return payload
+}
+
 Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
 {
     const uint8_t* in = input;
@@ -225,26 +252,16 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
         }
 
         if (byte >= kRLEStart && byte <= kRLEEnd) {
-            int nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
-
-            const int kInReq = fromCarry ? 1 : 2;   // value only, or marker+value
-            int kOutReq = 1 + nRLE;
-            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
-                if (!fromCarry && in + 1 == inEnd) {
-                    _carry = byte;
-                    ++in;
-                }
-                // Otherwise leave _carry as-is (still pending, waiting on
-                // output space) and don't consume anything this call.
+            const int nRLE = static_cast<int>(byte - kRLEStart + kRLEMinLength);
+            // Conservative: require one extra byte of output headroom.
+            const Payload payload = fetchPayload(in, inEnd, out, outEnd, byte, fromCarry, 1 + nRLE);
+			in += payload.advance;
+            if (payload.payload < 0) 
                 break;
-            }
 
-            if (!fromCarry) ++in; // consume marker
-            _carry = -1;
             // RLEs are not pushed to the Table
-            uint8_t value = *in++;
             for (int i = 0; i < nRLE; i++) {
-                *out++ = value;
+                *out++ = static_cast<uint8_t>(payload.payload);
             }
             continue;
         }
@@ -266,18 +283,12 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
         }
         else if (byte == kLiteral) {
             // Literal escape sequence: marker + value (2 bytes total)
-            const int kInReq = fromCarry ? 1 : 2;
-            static constexpr int kOutReq = 1;
-            if (in + kInReq > inEnd || out + kOutReq > outEnd) {
-                if (!fromCarry && in + 1 == inEnd) {
-                    _carry = kLiteral;
-                    ++in; // consume marker
-                }
+            const Payload payload = fetchPayload(in, inEnd, out, outEnd, byte, fromCarry, 1);
+            in += payload.advance;
+            if (payload.payload < 0) 
                 break;
-            }
-            if (!fromCarry) ++in; // consume marker
-            _carry = -1;
-            *out++ = *in++;
+
+            *out++ = static_cast<uint8_t>(payload.payload);
             continue;
         }
         else {

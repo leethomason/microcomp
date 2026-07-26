@@ -149,6 +149,28 @@ public:
     }
 
 private:
+    // Shared plumbing for the two 2-byte tokens (RLE run and literal escape):
+    // a marker byte followed by a payload byte. The marker may have been
+    // consumed on a previous call and resumed via _carry; only the payload
+    // then comes from this call's buffer.
+    //   in, inEnd   - current/one-past-end input cursors (caller applies the
+    //                 returned advance to its own `in`; this function does
+    //                 not mutate the caller's cursor)
+    //   out, outEnd - current/one-past-end output cursors (checked, not written)
+    //   marker      - the marker byte (parked into _carry when its payload is
+    //                 not yet available)
+    //   fromCarry   - the marker was resumed from _carry this call
+    //   outReq      - output bytes the token needs (conservative is fine)
+
+    struct Payload {
+		int payload = -1;  // The payload byte (0-255) or -1 if not yet available
+		int advance = 0;   // How many bytes to advance the input cursor
+    };
+
+    Payload fetchPayload(const uint8_t* in, const uint8_t* inEnd,
+                     uint8_t* out, const uint8_t* outEnd,
+                     uint8_t marker, bool fromCarry, int outReq);
+
     bool _detectEOF = false;
     int _carry = -1;    // It is possible that the last byte in input is part of an escape sequence.
 	                    // In that case, we store it here to process on the next call.

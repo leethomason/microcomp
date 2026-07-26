@@ -22,7 +22,9 @@ void Table::push(uint8_t a)
     int weakest = -1;
     for (int idx = start; idx < end; idx++) {
         if (_table[idx].count == 0) {
-            _table[idx] = { _prev, a, 1 };
+            _table[idx].a = _prev;
+            _table[idx].b = a;
+            _table[idx].count = 1;
             _prev = a;
             return;
         }
@@ -45,7 +47,9 @@ void Table::push(uint8_t a)
     // for it.
     Entry& loser = _table[weakest];
     if (--loser.count == 0) {
-        loser = { _prev, a, 1 };
+        loser.a = _prev;
+        loser.b = a;
+        loser.count = 1;
     }
     _prev = a;
 }
@@ -185,11 +189,10 @@ Result Compressor::compress(const uint8_t* input, size_t inputSize, uint8_t* out
             *out++ = *in++;
         }
     }
-    Result result{
-        static_cast<int>(in - input),
-        static_cast<int>(out - output),
-        false
-    };
+    Result result;
+    result.nInput = static_cast<int>(in - input);
+    result.nOutput = static_cast<int>(out - output);
+    result.eofFF = false;
     return result;
 }
 
@@ -209,7 +212,10 @@ Decompressor::Payload Decompressor::fetchPayload(const uint8_t* in, const uint8_
         // Otherwise leave state untouched (still pending on output space,
         // or the marker will simply be reprocessed next call) and consume
         // nothing.
-		return { -1, advance };
+		Payload payload;
+        payload.payload = -1;
+        payload.advance = advance;
+        return payload;
     }
     if (!fromCarry) {
         ++in;   // consume marker
@@ -217,7 +223,10 @@ Decompressor::Payload Decompressor::fetchPayload(const uint8_t* in, const uint8_
     }
     _carry = -1;
     advance++;
-    return { *in, advance };           // consume and return payload
+    Payload payload;
+    payload.payload = *in;
+    payload.advance = advance;
+    return payload;           // consume and return payload
 }
 
 Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t* output, size_t outputSize)
@@ -286,11 +295,11 @@ Result Decompressor::decompress(const uint8_t* input, size_t inputSize, uint8_t*
             in++;
         }
     }
-    return Result{
-        static_cast<int>(in - input),
-        static_cast<int>(out - output),
-        eofFF
-    };
+    Result result;
+    result.nInput = static_cast<int>(in - input);
+    result.nOutput = static_cast<int>(out - output);
+    result.eofFF = eofFF;
+    return result;
 }
 
 } // namespace mccomp
